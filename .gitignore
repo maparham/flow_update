@@ -32,3 +32,9 @@
 *.app
 
 boost_1_65_1
+.DS_Store
+.cproject
+.project
+.settings
+Debug
+Release
