@@ -10,38 +10,12 @@
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/depth_first_search.hpp>
 
+#include "helpers.hpp"
+
 using namespace boost;
 using namespace std;
 
-enum FlowID {
-	BLUE, RED
-};
 
-// define custom property names
-enum Usage_E {
-	flow_old, flow_new, flow_both, flow_none
-};
-
-struct Flow {
-	Flow() :
-			usage(flow_none) {
-	}
-	Flow(Usage_E usage) :
-			usage(usage) {
-	}
-	Usage_E usage;
-};
-
-struct Edge_label {
-	Edge_label() :
-			capacity(1) {
-	}
-	int capacity;
-	Flow flows[2];
-};
-struct graph_label {
-	int id;
-};
 // Make convenient labels for the vertices
 struct Example {
 	int S;
@@ -52,50 +26,10 @@ struct Example {
 	int numNodes = 5;
 } example;
 
-template<class Graph>
-void print_network(const Graph& G) {
-	typedef typename boost::graph_traits<Graph>::vertex_iterator Viter;
-	typedef typename boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
-	typedef typename boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
+bool isForkNode(const myTypes::Vertex &v, const myTypes::MyGraph &g,
+		FlowID fid) {
 
-//	typename property_map<Graph, edge_capacity_t>::const_type capacity = get(
-//			edge_capacity, G);
-//	typename property_map<Graph, edge_flow_t>::const_type flow = get(edge_flow,
-//			G);
-
-	int fid = get_property(G, graph_name);
-	Viter ui, uiend;
-	tie(ui, uiend) = vertices(G);
-
-	for (; ui != uiend; ++ui) {
-		OutEdgeIter out, out_end;
-		cout << get(vertex_name, G.root())[G.local_to_global(*ui)] << "\t";
-
-		tie(out, out_end) = out_edges(*ui, G);
-		for (; out != out_end; ++out)
-						cout << "--("
-//					<< count_if(begin(G[*out].flows), end(G[*out].flows),
-//							[](Flow f) {return f.usage!=flow_none;}) << ','
-					<< ((G[*out].flows[fid].usage == flow_old) ? "old" : "new")
-					<< "/" << G[*out].capacity << ")--> "
-					<< get(vertex_name, G.root())[G.local_to_global(
-							target(*out, G))] << "\t";
-
-		InEdgeIter in, in_end;
-		cout << endl << "\t";
-		tie(in, in_end) = in_edges(*ui, G);
-//		for (; in != in_end; ++in)
-//			cout << "<--(" << G[*in].flows[0].ID << "/" << G[*in].capacity
-//					<< ")-- " << source(*in, G) << "\t";
-
-		cout << endl;
-	}
-}
-
-template<class Vertex, class Graph>
-bool isForkNode(const Vertex &v, const Graph &g, FlowID fid) {
-
-	typedef typename graph_traits<Graph>::out_edge_iterator OutEdgeIter;
+	typedef typename graph_traits<myTypes::MyGraph>::out_edge_iterator OutEdgeIter;
 	OutEdgeIter out, out_end;
 	bool fold = false, fnew = false;
 	tie(out, out_end) = out_edges(v, g);
@@ -108,10 +42,10 @@ bool isForkNode(const Vertex &v, const Graph &g, FlowID fid) {
 	return fold && fnew;
 }
 
-template<class Vertex, class Graph>
-bool isJoinNode(const Vertex &v, const Graph &g, FlowID fid) {
+bool isJoinNode(const myTypes::Vertex &v, const myTypes::MyGraph &g,
+		FlowID fid) {
 
-	typedef typename graph_traits<Graph>::in_edge_iterator InEdgeIter;
+	typedef typename graph_traits<myTypes::MyGraph>::in_edge_iterator InEdgeIter;
 	InEdgeIter in, in_end;
 	bool fold = false, fnew = false;
 	tie(in, in_end) = in_edges(v, g);
@@ -124,11 +58,9 @@ bool isJoinNode(const Vertex &v, const Graph &g, FlowID fid) {
 	return fold && fnew;
 }
 
-template<class Graph>
-void computeBlocks(Graph &g, FlowID fid, vector<Graph*> &blocks) {
-	typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-	typedef std::vector<Vertex> VertexList;
-	VertexList vl;
+void computeBlocks(myTypes::MyGraph &g, FlowID fid,
+		vector<myTypes::MyGraph*> &blocks) {
+	myTypes::VertexList vl;
 	topological_sort(g, std::back_inserter(vl));
 
 	cout << "A topological ordering: ";
@@ -136,7 +68,7 @@ void computeBlocks(Graph &g, FlowID fid, vector<Graph*> &blocks) {
 		cout << get(vertex_name, g)[*ii] << "_" << isForkNode(*ii, g, fid)
 				<< "_" << isJoinNode(*ii, g, fid) << " ";
 
-	Graph *block;
+	myTypes::MyGraph *block;
 	// scan the nodes in the topological order, create a block on each fork node
 	// close the current block on the first join node
 	// add any node in between to the current block
@@ -167,17 +99,16 @@ void computeBlocks(Graph &g, FlowID fid, vector<Graph*> &blocks) {
 	}
 }
 
-template<class Graph, class Vertex>
-bool edgeExists(const Vertex &u, const Vertex &v, const Graph &g) {
+bool edgeExists(const myTypes::Vertex &u, const myTypes::Vertex &v,
+		const myTypes::MyGraph &g) {
 	return !(g.global_to_local(u) == g.null_vertex()
 			|| g.global_to_local(v) == g.null_vertex());
 }
 
-template<class Graph>
-void computeDependencyGraph(const vector<Graph*> &blocks, Graph root,
-		Graph &dependency) {
+void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
+		myTypes::MyGraph root, myTypes::MyGraph &dependency) {
 	// here only 2 flow-pairs is assumed
-	typename graph_traits<Graph>::edge_iterator ei, ei_end;
+	typename graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 
 	cout << "printing b0\n";
 	print_network(*blocks[0]);
@@ -243,40 +174,27 @@ void computeDependencyGraph(const vector<Graph*> &blocks, Graph root,
 	//add_edge(0, 1, dependency);
 }
 
-template<class Edge, class Graph>
 struct cycle_detector: public default_dfs_visitor {
 	cycle_detector(bool & cycle) :
 			has_cycle(cycle) {
 	}
-	void back_edge(const Edge &e, const Graph &g) {
+	void back_edge(const myTypes::Edge &e, const myTypes::MyGraph &g) {
 		has_cycle = true;
 	}
 	bool & has_cycle;
 };
-template<class Edge, class Graph>
-bool has_cycle(const Graph & g) {
+
+bool has_cycle(const myTypes::MyGraph & g) {
 	bool has_cycle = false;
-	cycle_detector<Edge, Graph> sd(has_cycle);
+	cycle_detector sd(has_cycle);
 	depth_first_search(g, visitor(sd));
 	return has_cycle;
 }
 
 int main(int, char*[]) {
 
-	// create a typedef for the Graph type
-	typedef property<edge_index_t, int, Edge_label> myEdgeProp_t;
-	typedef property<vertex_name_t, string> myVertexProp_t;
-	typedef property<graph_name_t, int> myGraphProp_t;
-
-	typedef adjacency_list<vecS, vecS, bidirectionalS,
-			property<vertex_color_t, default_color_type, myVertexProp_t>,
-			myEdgeProp_t, myGraphProp_t> DiGraph;
-
-	typedef subgraph<DiGraph> MyGraph;
-	typedef graph_traits<MyGraph>::edge_descriptor Edge;
-
 	// declare a graph object
-	MyGraph g(0);
+	myTypes::MyGraph g(0);
 
 	put(vertex_name, g, example.S = add_vertex(g), "S");
 	put(vertex_name, g, example.T = add_vertex(g), "T");
@@ -284,7 +202,7 @@ int main(int, char*[]) {
 	put(vertex_name, g, example.U = add_vertex(g), "U");
 	put(vertex_name, g, example.V = add_vertex(g), "V");
 
-	Edge e;
+	myTypes::Edge e;
 	e = add_edge(example.U, example.W, g).first;
 	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_new);
@@ -317,7 +235,7 @@ int main(int, char*[]) {
 	g[e].flows[RED] = Flow(flow_old);
 	g[e].flows[BLUE] = Flow(flow_new);
 //	// the first flow pair
-	MyGraph pair1 = g.create_subgraph();
+	myTypes::MyGraph pair1 = g.create_subgraph();
 	add_vertex(example.S, pair1);
 	add_vertex(example.T, pair1);
 	add_vertex(example.W, pair1);
@@ -325,25 +243,25 @@ int main(int, char*[]) {
 	add_vertex(example.V, pair1);
 
 	// the second flow pair
-	MyGraph pair2 = g.create_subgraph();
+	myTypes::MyGraph pair2 = g.create_subgraph();
 	add_vertex(example.S, pair2);
 	add_vertex(example.T, pair2);
 	add_vertex(example.W, pair2);
 	add_vertex(example.U, pair2);
 	add_vertex(example.V, pair2);
 
-	vector<MyGraph*> blocks;
-	computeBlocks<MyGraph>(pair1, BLUE, blocks);
-	computeBlocks<MyGraph>(pair2, RED, blocks);
+	vector<myTypes::MyGraph*> blocks;
+	computeBlocks(pair1, BLUE, blocks);
+	computeBlocks(pair2, RED, blocks);
 	cout << "blocks.size()=" << blocks.size() << "num_vertices="
 			<< num_vertices(*blocks[0]) << endl;
 
-	MyGraph dep(blocks.size());
-	computeDependencyGraph<MyGraph>(blocks, g, dep);
+	myTypes::MyGraph dep(blocks.size());
+	computeDependencyGraph(blocks, g, dep);
 
 	cout << "\nprinting dependency graph:";
 	print_graph(dep);
-	cout << "has_cycle? " << has_cycle<Edge, MyGraph>(dep);
+	cout << "has_cycle? " << has_cycle(dep);
 
 	//print_graph(*blocks[0], get(vertex_index, *blocks[0]));
 
