@@ -15,7 +15,6 @@
 using namespace boost;
 using namespace std;
 
-
 // Make convenient labels for the vertices
 struct Example {
 	int S;
@@ -26,7 +25,7 @@ struct Example {
 	int numNodes = 5;
 } example;
 
-bool isForkNode(const myTypes::Vertex &v, const myTypes::MyGraph &g,
+bool isForkNode(const Vertex<myTypes::MyGraph> &v, const myTypes::MyGraph &g,
 		FlowID fid) {
 
 	typedef typename graph_traits<myTypes::MyGraph>::out_edge_iterator OutEdgeIter;
@@ -42,7 +41,7 @@ bool isForkNode(const myTypes::Vertex &v, const myTypes::MyGraph &g,
 	return fold && fnew;
 }
 
-bool isJoinNode(const myTypes::Vertex &v, const myTypes::MyGraph &g,
+bool isJoinNode(const Vertex<myTypes::MyGraph> &v, const myTypes::MyGraph &g,
 		FlowID fid) {
 
 	typedef typename graph_traits<myTypes::MyGraph>::in_edge_iterator InEdgeIter;
@@ -99,23 +98,23 @@ void computeBlocks(myTypes::MyGraph &g, FlowID fid,
 	}
 }
 
-bool edgeExists(const myTypes::Vertex &u, const myTypes::Vertex &v,
-		const myTypes::MyGraph &g) {
+bool edgeExists(const Vertex<myTypes::MyGraph> &u,
+		const Vertex<myTypes::MyGraph> &v, const myTypes::MyGraph &g) {
 	return !(g.global_to_local(u) == g.null_vertex()
 			|| g.global_to_local(v) == g.null_vertex());
 }
 
 void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
-		myTypes::MyGraph root, myTypes::MyGraph &dependency) {
+		myTypes::MyGraph root, myTypes::DAG &dependency) {
 	// here only 2 flow-pairs is assumed
 	typename graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 
 	cout << "printing b0\n";
-	print_network(*blocks[0]);
+	print_graph(*blocks[0]);
 	cout << "printing b1\n";
-	print_network(*blocks[1]);
+	print_graph(*blocks[1]);
 	cout << "printing b2\n";
-	print_network(*blocks[2]);
+	print_graph(*blocks[2]);
 
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
 
@@ -175,24 +174,53 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 }
 
 struct cycle_detector: public default_dfs_visitor {
-	cycle_detector(bool & cycle) :
-			has_cycle(cycle) {
+	cycle_detector(myTypes::DAG &myDAG, bool &cycle, int &diameter) :
+			myDAG(myDAG), has_cycle(cycle), diameter(diameter) {
 	}
-	void back_edge(const myTypes::Edge &e, const myTypes::MyGraph &g) {
+	void back_edge(const Edge<myTypes::DAG> &e, const myTypes::DAG &g) {
 		has_cycle = true;
 	}
-	bool & has_cycle;
+	void discover_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+		cout << "\ndiscover_vertex " << v;
+		put(vertex_distance, myDAG, v, 0); // init
+	}
+	void start_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+		cout << "\nstart_vertex " << v;
+	}
+	void finish_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+		cout << "\nfinish_vertex " << v;
+	}
+	void finish_edge(const Edge<myTypes::DAG> &e, const myTypes::DAG &g) {
+		cout << "\nfinish_edge " << source(e, g);
+		int h_src = get(vertex_distance, g)[source(e, g)];
+		int h_tar = get(vertex_distance, g)[target(e, g)];
+		h_src = max(h_tar + 1, h_src); // update the source vertex height
+		put(vertex_distance, myDAG, source(e, g), h_src);
+		cout << "\nheight of v=" << source(e, g) << " is " << h_src;
+		diameter = max(diameter, h_src); // the max height so far
+	}
+	void forward_or_cross_edge(const Edge<myTypes::DAG> &e,
+			const myTypes::DAG &g) {
+//		cout << "\nforward_or_cross_edge " << target(e, g);
+//		int h_ = get(vertex_distance, g)[target(e, g)]; // height value from a previously finished vertex
+//		cout << "\nheight of v=" << target(e, g) << " is " << h_;
+		//height = h_; // new start value
+		// n finish_edge will be called on source(e, g)
+	}
+	myTypes::DAG &myDAG;
+	bool &has_cycle;
+	int &diameter;
 };
 
-bool has_cycle(const myTypes::MyGraph & g) {
+myTypes::Result evaluate(myTypes::DAG &g) {
 	bool has_cycle = false;
-	cycle_detector sd(has_cycle);
+	int diameter = 0;
+	cycle_detector sd(g, has_cycle, diameter);
 	depth_first_search(g, visitor(sd));
-	return has_cycle;
+	return myTypes::Result(has_cycle, diameter);
 }
 
 int main(int, char*[]) {
-
 	// declare a graph object
 	myTypes::MyGraph g(0);
 
@@ -202,7 +230,7 @@ int main(int, char*[]) {
 	put(vertex_name, g, example.U = add_vertex(g), "U");
 	put(vertex_name, g, example.V = add_vertex(g), "V");
 
-	myTypes::Edge e;
+	Edge<myTypes::MyGraph> e;
 	e = add_edge(example.U, example.W, g).first;
 	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_new);
@@ -256,14 +284,16 @@ int main(int, char*[]) {
 	cout << "blocks.size()=" << blocks.size() << "num_vertices="
 			<< num_vertices(*blocks[0]) << endl;
 
-	myTypes::MyGraph dep(blocks.size());
+	myTypes::DAG dep(blocks.size());
 	computeDependencyGraph(blocks, g, dep);
 
-	cout << "\nprinting dependency graph:";
+	cout << "\nprinting dependency graph:\n";
+
 	print_graph(dep);
-	cout << "has_cycle? " << has_cycle(dep);
+	myTypes::Result res = evaluate(dep);
+	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second;
 
 	//print_graph(*blocks[0], get(vertex_index, *blocks[0]));
-
+	cout << "__GNUC__" << __GNUC__;
 	return 0;
 }

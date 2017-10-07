@@ -51,7 +51,7 @@ main()
     E(v, y), E(w, y), E(w, z), E(z, z)
   };
 #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
-  graph_t g(N);  
+  graph_t g(N);
   for (std::size_t j = 0; j < sizeof(edge_array) / sizeof(E); ++j)
     add_edge(edge_array[j].first, edge_array[j].second, g);
 #else

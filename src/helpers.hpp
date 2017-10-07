@@ -31,6 +31,11 @@ struct graph_label {
 	int id;
 };
 
+template<class Graph>
+using Edge= typename graph_traits<Graph>::edge_descriptor;
+template<class Graph>
+using Vertex = typename graph_traits<Graph>::vertex_descriptor;
+
 struct myTypes {
 	// create a typedef for the Graph type
 	typedef property<edge_index_t, int, Edge_label> myEdgeProp_t;
@@ -42,9 +47,12 @@ struct myTypes {
 			myEdgeProp_t, myGraphProp_t> DiGraph;
 
 	typedef subgraph<DiGraph> MyGraph;
-	typedef graph_traits<MyGraph>::edge_descriptor Edge;
-	typedef typename boost::graph_traits<MyGraph>::vertex_descriptor Vertex;
-	typedef std::vector<Vertex> VertexList;
+	typedef std::vector<Vertex<MyGraph>> VertexList;
+
+	typedef adjacency_list<vecS, vecS, bidirectionalS,
+			property<vertex_distance_t, size_t>> DAG;
+
+	typedef pair<bool, size_t> Result;
 };
 
 template<class Graph>
