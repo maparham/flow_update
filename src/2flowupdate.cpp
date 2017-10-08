@@ -9,21 +9,14 @@
 #include <boost/graph/topological_sort.hpp>
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/depth_first_search.hpp>
+#include <random>
+#include <boost/graph/random.hpp>
+#include <ctime>
 
 #include "helpers.hpp"
 
 using namespace boost;
 using namespace std;
-
-// Make convenient labels for the vertices
-struct Example {
-	int S;
-	int T;
-	int U;
-	int V;
-	int W;
-	int numNodes = 5;
-} example;
 
 bool isForkNode(const Vertex<myTypes::MyGraph> &v, const myTypes::MyGraph &g,
 		FlowID fid) {
@@ -181,22 +174,22 @@ struct cycle_detector: public default_dfs_visitor {
 		has_cycle = true;
 	}
 	void discover_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
-		cout << "\ndiscover_vertex " << v;
+//		cout << "\ndiscover_vertex " << v;
 		put(vertex_distance, myDAG, v, 0); // init
 	}
 	void start_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
-		cout << "\nstart_vertex " << v;
+//		cout << "\nstart_vertex " << v;
 	}
 	void finish_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
-		cout << "\nfinish_vertex " << v;
+//		cout << "\nfinish_vertex " << v;
 	}
 	void finish_edge(const Edge<myTypes::DAG> &e, const myTypes::DAG &g) {
-		cout << "\nfinish_edge " << source(e, g);
+//		cout << "\nfinish_edge " << source(e, g);
 		int h_src = get(vertex_distance, g)[source(e, g)];
 		int h_tar = get(vertex_distance, g)[target(e, g)];
 		h_src = max(h_tar + 1, h_src); // update the source vertex height
 		put(vertex_distance, myDAG, source(e, g), h_src);
-		cout << "\nheight of v=" << source(e, g) << " is " << h_src;
+//		cout << "\nheight of v=" << source(e, g) << " is " << h_src;
 		diameter = max(diameter, h_src); // the max height so far
 	}
 	void forward_or_cross_edge(const Edge<myTypes::DAG> &e,
@@ -221,62 +214,15 @@ myTypes::Result evaluate(myTypes::DAG &g) {
 }
 
 int main(int, char*[]) {
-	// declare a graph object
+
+	// the network graph
 	myTypes::MyGraph g(0);
-
-	put(vertex_name, g, example.S = add_vertex(g), "S");
-	put(vertex_name, g, example.T = add_vertex(g), "T");
-	put(vertex_name, g, example.W = add_vertex(g), "W");
-	put(vertex_name, g, example.U = add_vertex(g), "U");
-	put(vertex_name, g, example.V = add_vertex(g), "V");
-
-	Edge<myTypes::MyGraph> e;
-	e = add_edge(example.U, example.W, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(example.W, example.V, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(example.S, example.W, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(example.S, example.U, g).first;
-	g[e].capacity = 2;
-	g[e].flows[RED] = Flow(flow_old);
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(example.W, example.T, g).first;
-	g[e].capacity = 2;
-	g[e].flows[BLUE] = Flow(flow_old);
-	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(example.U, example.V, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(example.V, example.T, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
-	g[e].flows[BLUE] = Flow(flow_new);
-//	// the first flow pair
+	// the first flow pair
 	myTypes::MyGraph pair1 = g.create_subgraph();
-	add_vertex(example.S, pair1);
-	add_vertex(example.T, pair1);
-	add_vertex(example.W, pair1);
-	add_vertex(example.U, pair1);
-	add_vertex(example.V, pair1);
-
 	// the second flow pair
 	myTypes::MyGraph pair2 = g.create_subgraph();
-	add_vertex(example.S, pair2);
-	add_vertex(example.T, pair2);
-	add_vertex(example.W, pair2);
-	add_vertex(example.U, pair2);
-	add_vertex(example.V, pair2);
+
+	exampleNetwork(g,pair1,pair2);
 
 	vector<myTypes::MyGraph*> blocks;
 	computeBlocks(pair1, BLUE, blocks);
@@ -289,11 +235,14 @@ int main(int, char*[]) {
 
 	cout << "\nprinting dependency graph:\n";
 
+//	mt19937 rng;
+//	rng.seed(uint32_t(time(0)));
+//	generate_random_graph(dep, 10, 10, rng, false, false);
+
 	print_graph(dep);
 	myTypes::Result res = evaluate(dep);
 	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second;
 
 	//print_graph(*blocks[0], get(vertex_index, *blocks[0]));
-	cout << "__GNUC__" << __GNUC__;
 	return 0;
 }

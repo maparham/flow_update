@@ -90,3 +90,67 @@ void print_network(const Graph& G) {
 		cout << endl;
 	}
 }
+
+// Make convenient labels for the vertices
+struct Example {
+	int S;
+	int T;
+	int U;
+	int V;
+	int W;
+	int numNodes = 5;
+} example;
+
+void exampleNetwork(myTypes::MyGraph &g, myTypes::MyGraph &pair1,
+		myTypes::MyGraph &pair2) {
+	put(vertex_name, g, example.S = add_vertex(g), "S");
+	put(vertex_name, g, example.T = add_vertex(g), "T");
+	put(vertex_name, g, example.W = add_vertex(g), "W");
+	put(vertex_name, g, example.U = add_vertex(g), "U");
+	put(vertex_name, g, example.V = add_vertex(g), "V");
+
+	Edge<myTypes::MyGraph> e;
+	e = add_edge(example.U, example.W, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(example.W, example.V, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(example.S, example.W, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(example.S, example.U, g).first;
+	g[e].capacity = 2;
+	g[e].flows[RED] = Flow(flow_old);
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(example.W, example.T, g).first;
+	g[e].capacity = 2;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(example.U, example.V, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(example.V, example.T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+	g[e].flows[BLUE] = Flow(flow_new);
+	add_vertex(example.S, pair1);
+	add_vertex(example.T, pair1);
+	add_vertex(example.W, pair1);
+	add_vertex(example.U, pair1);
+	add_vertex(example.V, pair1);
+
+	add_vertex(example.S, pair2);
+	add_vertex(example.T, pair2);
+	add_vertex(example.W, pair2);
+	add_vertex(example.U, pair2);
+	add_vertex(example.V, pair2);
+
+}
