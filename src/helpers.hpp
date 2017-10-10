@@ -38,13 +38,13 @@ using Vertex = typename graph_traits<Graph>::vertex_descriptor;
 
 struct myTypes {
 	// create a typedef for the Graph type
-	typedef property<edge_index_t, int, Edge_label> myEdgeProp_t;
-	typedef property<vertex_name_t, string> myVertexProp_t;
-	typedef property<graph_name_t, int> myGraphProp_t;
+	typedef property<edge_index_t, int, property<edge_weight_t, int, Edge_label>> EdgeProp;
+	typedef property<vertex_name_t, string> VertexProp;
+	typedef property<graph_name_t, int> GraphProp;
 
 	typedef adjacency_list<vecS, vecS, bidirectionalS,
-			property<vertex_color_t, default_color_type, myVertexProp_t>,
-			myEdgeProp_t, myGraphProp_t> DiGraph;
+			property<vertex_color_t, default_color_type, VertexProp>, EdgeProp,
+			GraphProp> DiGraph;
 
 	typedef subgraph<DiGraph> MyGraph;
 	typedef std::vector<Vertex<MyGraph>> VertexList;
@@ -54,6 +54,10 @@ struct myTypes {
 
 	typedef pair<bool, size_t> Result;
 };
+
+typedef vector<Vertex<myTypes::MyGraph>> ParentMap;
+
+int inf = numeric_limits<int>::max();
 
 template<class Graph>
 void print_network(const Graph& G) {
@@ -141,6 +145,12 @@ void exampleNetwork(myTypes::MyGraph &g, myTypes::MyGraph &pair1,
 	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_old);
 	g[e].flows[BLUE] = Flow(flow_new);
+
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+
 	add_vertex(example.S, pair1);
 	add_vertex(example.T, pair1);
 	add_vertex(example.W, pair1);
@@ -153,4 +163,17 @@ void exampleNetwork(myTypes::MyGraph &g, myTypes::MyGraph &pair1,
 	add_vertex(example.U, pair2);
 	add_vertex(example.V, pair2);
 
+}
+
+template<class Graph>
+string edgeToStr(Edge<Graph> e, Graph g) {
+	stringstream sstm;
+	sstm << "(" << source(e, g) << "," << target(e, g) << ")";
+	return sstm.str();
+}
+template<class Graph>
+string edgeToStr(Vertex<Graph> u, Vertex<Graph> v, Graph g) {
+	stringstream sstm;
+	sstm << "(" << u << "," << v << ")";
+	return sstm.str();
 }

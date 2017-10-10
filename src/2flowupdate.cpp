@@ -12,6 +12,7 @@
 #include <random>
 #include <boost/graph/random.hpp>
 #include <ctime>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
 
 #include "helpers.hpp"
 
@@ -102,12 +103,12 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 	// here only 2 flow-pairs is assumed
 	typename graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 
-	cout << "printing b0\n";
-	print_graph(*blocks[0]);
-	cout << "printing b1\n";
-	print_graph(*blocks[1]);
-	cout << "printing b2\n";
-	print_graph(*blocks[2]);
+//	cout << "printing b0\n";
+//	print_graph(*blocks[0]);
+//	cout << "printing b1\n";
+//	print_graph(*blocks[1]);
+//	cout << "printing b2\n";
+//	print_graph(*blocks[2]);
 
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
 
@@ -213,6 +214,152 @@ myTypes::Result evaluate(myTypes::DAG &g) {
 	return myTypes::Result(has_cycle, diameter);
 }
 
+template<class Graph>
+size_t shortestPath(const Graph &g, Vertex<Graph> s, Vertex<Graph> t,
+		vector<Vertex<Graph>> &parentMap) {
+	vector<int> distMap(num_vertices(g));
+	Vertex<Graph> s_ = vertex(s, g);
+	dijkstra_shortest_paths(g, s_,
+			predecessor_map(
+					make_iterator_property_map(parentMap.begin(),
+							get(vertex_index, g))).distance_map(
+					make_iterator_property_map(distMap.begin(),
+							get(vertex_index, g))));
+	cout << "\ndistance from " << s << " to " << t << " is " << distMap[t]
+			<< " in the graph:\n";
+	print_graph(g);
+	return distMap[t];
+}
+
+template<class Graph>
+size_t shortestPath(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
+	vector<Vertex<Graph>> p(num_vertices(g));
+	return shortestPath(g, s, t, p);
+}
+
+// set edge labels in the target graph for the path specified by the parent map
+template<class Graph>
+void addSP(Graph &g, Graph &target, int flowID, Usage_E usage, ParentMap parent,
+		Vertex<Graph> s, Vertex<Graph> t) {
+
+	Vertex<Graph> v = t;
+	typename graph_traits<Graph>::vertex_iterator vi, vend;
+	tie(vi, vend) = vertices(target);
+
+//	std::cout << "distances and parents:" << std::endl;
+//	for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
+//		std::cout << "parent(" << get(vertex_name, g)[*vi] << ") = "
+//				<< get(vertex_name, g)[parent[*vi]] << endl;
+//	}
+	do {
+		if (count_if(vi, vend,
+				[v,target](Vertex<Graph> i) {return target.local_to_global(i)==v;})
+				== 0) {  // check for duplicates
+			cout << "\nadding vertex " << v;
+			add_vertex(v, target);
+			Edge<Graph> e = edge(parent[v], v, g).first;
+			g[e].flows[flowID] = Flow(usage);
+		}
+		v = parent[v];
+	} while (v != s);
+}
+
+/**
+ * remove an edge from g such that the shortest path in g'=degenerate(g...) is the second shortest path in g
+ * returns false if no such edge exist. That is, no next shortest path exists.
+ */
+template<class Graph>
+bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
+	Edge<Graph> dummy;
+	Edge<Graph> &bestEdge = dummy;
+
+	int bestSP = inf;
+	vector<Vertex<Graph>> parent(num_vertices(g));
+	size_t spLen = shortestPath(g, s, t, parent);
+
+	for (Vertex<Graph> v = t; v != s; v = parent[v]) { // for each path edge from t to s
+		cout << "\ncandidate edge " << edgeToStr(parent[v], v, g);
+
+		auto pair = edge(parent[v], v, g);
+		auto e = pair.first;
+		auto ew = get(edge_weight, g, e);
+		put(edge_weight, g, e, inf);
+		spLen = shortestPath(g, s, t); // shortest path not using edge e
+		put(edge_weight, g, e, ew);
+
+		cout << "\nspLen=" << spLen;
+		if (spLen <= bestSP) { // next best SP could have the same length as the current SP
+			bestSP = spLen;
+			bestEdge = e;
+		}
+	}
+
+	cout << "\nremoving best edge " << edgeToStr(bestEdge, g);
+	put(edge_weight, g, bestEdge, inf);
+
+	return bestSP < inf;
+}
+
+template<class Graph>
+bool generate2Pairs(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
+		Vertex<Graph> t) {
+
+	auto k = num_vertices(g);
+	// define pairs for flow1 and flow2, as parent maps
+	ParentMap f1old(k);
+	ParentMap f1new(k);
+	ParentMap f2old(k);
+	ParentMap f2new(k);
+	bool nextSPExist;
+
+	add_vertex(s, pair1);
+	add_vertex(s, pair2);
+
+	cout << "\nold flow for pair1:";
+	size_t spLen = shortestPath(g, s, t, f1old);
+	if (spLen < inf) {
+		addSP(g, pair1, BLUE, flow_old, f1old, s, t);
+	} else {
+		cout << "\ns,t is disconnected";
+		return false;
+	}
+
+	cout << "\nnew flow for pair1:";
+	nextSPExist = degenerate(g, s, t);
+	if (nextSPExist) {
+		shortestPath(g, s, t, f1new);
+		addSP(g, pair1, BLUE, flow_new, f1new, s, t);
+
+	} else { // no more s,t path is left
+		cout << "\n SP2 dies not exist";
+		return false;
+	}
+
+	cout << "\nold flow for pair2:";
+	nextSPExist = degenerate(g, s, t);
+	if (nextSPExist) {
+		shortestPath(g, s, t, f2old);
+		addSP(g, pair2, RED, flow_old, f2old, s, t);
+
+	} else { // no more s,t path is left
+		cout << "\n SP3 does not exist";
+		return false;
+	}
+
+	cout << "\nold flow for pair2:";
+	nextSPExist = degenerate(g, s, t);
+	if (nextSPExist) {
+		shortestPath(g, s, t, f2new);
+		addSP(g, pair2, RED, flow_old, f2new, s, t);
+
+	} else { // no more s,t path is left
+		cout << "\nSP4 does not exist";
+		return false;
+	}
+
+	return true;
+}
+
 int main(int, char*[]) {
 
 	// the network graph
@@ -222,7 +369,7 @@ int main(int, char*[]) {
 	// the second flow pair
 	myTypes::MyGraph pair2 = g.create_subgraph();
 
-	exampleNetwork(g,pair1,pair2);
+	exampleNetwork(g, pair1, pair2);
 
 	vector<myTypes::MyGraph*> blocks;
 	computeBlocks(pair1, BLUE, blocks);
@@ -233,15 +380,19 @@ int main(int, char*[]) {
 	myTypes::DAG dep(blocks.size());
 	computeDependencyGraph(blocks, g, dep);
 
-	cout << "\nprinting dependency graph:\n";
+//	cout << "\nprinting dependency graph:\n";
 
 //	mt19937 rng;
 //	rng.seed(uint32_t(time(0)));
 //	generate_random_graph(dep, 10, 10, rng, false, false);
 
-	print_graph(dep);
+//	print_graph(g);
 	myTypes::Result res = evaluate(dep);
-	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second;
+	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second << endl;
+
+	myTypes::MyGraph pair = g.create_subgraph();
+	generate2Pairs(g, pair, pair, vertex(example.S, g), vertex(example.T, g));
+	print_network(pair);
 
 	//print_graph(*blocks[0], get(vertex_index, *blocks[0]));
 	return 0;
