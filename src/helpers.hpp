@@ -60,7 +60,7 @@ struct myTypes {
 typedef vector<Vertex<myTypes::MyGraph>> ParentMap;
 
 template<class Graph>
-void print_network(const Graph& G) {
+void print_network(Graph& G) {
 	typedef typename boost::graph_traits<Graph>::vertex_iterator Viter;
 	typedef typename boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
 	typedef typename boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
@@ -68,6 +68,11 @@ void print_network(const Graph& G) {
 	int fid = get_property(G, graph_name);
 	Viter ui, uiend;
 	tie(ui, uiend) = vertices(G);
+
+	typename property_map<Graph, vertex_name_t>::type name_map = get(
+			vertex_name, G.root());
+	typename property_map<Graph, edge_weight_t>::type weight_map = get(
+			edge_weight, G.root());
 
 	for (; ui != uiend; ++ui) {
 		OutEdgeIter out, out_end;
@@ -80,9 +85,10 @@ void print_network(const Graph& G) {
 //					<< count_if(begin(G[*out].flows), end(G[*out].flows),
 //							[](Flow f) {return f.usage!=flow_none;}) << ','
 					<< ((G[*out].flows[fid].usage == flow_old) ? "old" : "new")
-					<< "/" << G[*out].capacity << ")--> "
-					<< get(vertex_name, G.root())[G.local_to_global(
-							target(*out, G))] << "\t";
+					<< "/" << G[*out].capacity << "/"
+					<< ((weight_map[*out] == INF)?"INF":to_string(weight_map[*out]))
+			<< ")--> " << name_map[G.local_to_global(target(*out, G))]
+			<< "\t";
 
 		InEdgeIter in, in_end;
 		cout << endl << "\t";

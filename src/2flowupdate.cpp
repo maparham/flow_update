@@ -225,9 +225,9 @@ size_t shortestPath(const Graph &g, Vertex<Graph> s, Vertex<Graph> t,
 							get(vertex_index, g))).distance_map(
 					make_iterator_property_map(distMap.begin(),
 							get(vertex_index, g))));
-	cout << "\ndistance from " << s << " to " << t << " is " << distMap[t]
-			<< " in the graph:\n";
-	print_graph(g);
+//	cout << "\ndistance from " << s << " to " << t << " is " << distMap[t]
+//			<< " in the graph:\n";
+//	print_graph(g);
 	return distMap[t];
 }
 
@@ -266,7 +266,7 @@ void addSP(Graph &g, Graph &target, int flowID, Usage_E usage, ParentMap parent,
 
 /**
  * remove an edge from g such that the shortest path in g'=degenerate(g...) is the second shortest path in g
- * returns false if no such edge exist. That is, no next shortest path exists.
+ * returns false if no such edge exist. That is, no second shortest path exists.
  */
 template<class Graph>
 bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
@@ -296,6 +296,7 @@ bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 
 	cout << "\nremoving best edge " << edgeToStr(bestEdge, g);
 	put(edge_weight, g, bestEdge, INF);
+	print_network(g);
 
 	return bestSP < INF;
 }
@@ -331,7 +332,7 @@ bool generateFlowPairs(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
 		addSP(g, pair1, BLUE, flow_new, f1new, s, t);
 
 	} else { // no more s,t path is left
-		cout << "\n SP2 dies not exist";
+		cout << "\n SP2 does not exist";
 		return false;
 	}
 
