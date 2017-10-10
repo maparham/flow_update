@@ -273,7 +273,7 @@ bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	Edge<Graph> dummy;
 	Edge<Graph> &bestEdge = dummy;
 
-	int bestSP = inf;
+	int bestSP = INF;
 	vector<Vertex<Graph>> parent(num_vertices(g));
 	size_t spLen = shortestPath(g, s, t, parent);
 
@@ -283,7 +283,7 @@ bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 		auto pair = edge(parent[v], v, g);
 		auto e = pair.first;
 		auto ew = get(edge_weight, g, e);
-		put(edge_weight, g, e, inf);
+		put(edge_weight, g, e, INF);
 		spLen = shortestPath(g, s, t); // shortest path not using edge e
 		put(edge_weight, g, e, ew);
 
@@ -295,13 +295,13 @@ bool degenerate(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	}
 
 	cout << "\nremoving best edge " << edgeToStr(bestEdge, g);
-	put(edge_weight, g, bestEdge, inf);
+	put(edge_weight, g, bestEdge, INF);
 
-	return bestSP < inf;
+	return bestSP < INF;
 }
 
 template<class Graph>
-bool generate2Pairs(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
+bool generateFlowPairs(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
 		Vertex<Graph> t) {
 
 	auto k = num_vertices(g);
@@ -317,7 +317,7 @@ bool generate2Pairs(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
 
 	cout << "\nold flow for pair1:";
 	size_t spLen = shortestPath(g, s, t, f1old);
-	if (spLen < inf) {
+	if (spLen < INF) {
 		addSP(g, pair1, BLUE, flow_old, f1old, s, t);
 	} else {
 		cout << "\ns,t is disconnected";
@@ -391,7 +391,8 @@ int main(int, char*[]) {
 	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second << endl;
 
 	myTypes::MyGraph pair = g.create_subgraph();
-	generate2Pairs(g, pair, pair, vertex(example.S, g), vertex(example.T, g));
+	generateFlowPairs(g, pair, pair, vertex(example.S, g),
+			vertex(example.T, g));
 	print_network(pair);
 
 	//print_graph(*blocks[0], get(vertex_index, *blocks[0]));

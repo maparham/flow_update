@@ -1,6 +1,8 @@
 using namespace boost;
 using namespace std;
 
+#define INF numeric_limits<int>::max()
+
 enum FlowID {
 	BLUE, RED
 };
@@ -56,8 +58,6 @@ struct myTypes {
 };
 
 typedef vector<Vertex<myTypes::MyGraph>> ParentMap;
-
-int inf = numeric_limits<int>::max();
 
 template<class Graph>
 void print_network(const Graph& G) {
