@@ -17,13 +17,14 @@ using namespace boost;
 using namespace std;
 
 #define INF numeric_limits<int>::max()
-#define DEBUG 1
+//#define DEBUG 1
 
-struct Logger {
+struct Logger: std::ostream {
 	template<typename T>
 	Logger& operator <<(const T& x) {
 #ifdef DEBUG
 		std::cout << x;
+		std::cout.flush();
 #endif
 		return *this;
 	}
@@ -77,13 +78,16 @@ struct myTypes {
 
 	typedef adjacency_list<vecS, vecS, bidirectionalS,
 			property<vertex_color_t, default_color_type, VertexProp>, EdgeProp,
-			GraphProp> DiGraph;
+			GraphProp> BiGraph;
 
-	typedef subgraph<DiGraph> MyGraph;
+	typedef subgraph<BiGraph> MyGraph;
 	typedef std::vector<Vertex<MyGraph>> VertexList;
 
-	typedef adjacency_list<vecS, vecS, bidirectionalS,
-			property<vertex_distance_t, size_t>> DAG;
+//	typedef adjacency_list<vecS, vecS, bidirectionalS,
+//			property<vertex_distance_t, size_t>> DAG;
+
+	typedef adjacency_list<vecS, vecS, directedS,
+			property<vertex_distance_t, size_t>> Directed;
 
 	typedef pair<bool, size_t> Result;
 
@@ -147,6 +151,12 @@ void print_network(Graph& g, PrintLog &plog) {
 
 template<class Graph>
 void print_network(Graph& g) {
+	print_network(g, mylog);
+}
+
+template<class Graph>
+void print_network1(Graph& g, const string &title) {
+	mylog << title << '\n';
 	print_network(g, mylog);
 }
 
@@ -265,27 +275,119 @@ void exampleNetwork(myTypes::MyGraph &g, myTypes::MyGraph &pair1,
 	add_vertex(example.W, pair2);
 	add_vertex(example.U, pair2);
 	add_vertex(example.V, pair2);
+}
 
+void example_cyclic(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(4);
+	Edge<myTypes::MyGraph> e;
+
+	e = add_edge(0, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(0, 3, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+//	e = add_edge(2, 3, g).first;
+//	g[e].capacity = 1;
+//	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(2, 1, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_both);
+	g[e].flows[BLUE] = Flow(flow_old);
+
+	e = add_edge(3, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(3, 1, g).first;
+	g[e].capacity = 1;
+//	g[e].flows[RED] = Flow(flow_new);
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+}
+
+void example1(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(4);
+	Edge<myTypes::MyGraph> e;
+
+	e = add_edge(0, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(0, 4, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(2, 1, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_both);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(2, 3, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(3, 1, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(4, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
 }
 
 template<class Graph>
-string edgeToStr(Vertex<Graph> u, Vertex<Graph> v, Graph g) {
+string edgeToStr(Vertex<Graph> u, Vertex<Graph> v, Graph &g) {
 	stringstream sstm;
 	auto nameMap = get(vertex_name, g);
-	sstm << "(" << nameMap[u] << "," << nameMap[v] << ")";
+//	mylog << "(" << u << "," << v << ")";
+//	sstm << "(" << nameMap[u] << "," << nameMap[v] << ")";
+	sstm << "(" << u << "," << v << ")";
 	return sstm.str();
 }
 
 template<class Graph>
-string edgeToStr(Edge<Graph> e, Graph g) {
+string edgeToStr(Edge<Graph> e, Graph &g) {
 	stringstream sstm;
 	return edgeToStr(source(e, g), target(e, g), g);
 }
 
+string edgeToStr(Edge<myTypes::MyGraph> e, myTypes::MyGraph &g) {
+	stringstream sstm;
+	if (g.is_root()) {
+		return edgeToStr(source(e, g), target(e, g), g);
+
+	} else {
+		auto e_g = g.local_to_global(e);
+		return edgeToStr(e_g, g.root());
+	}
+}
+
 template<class Vertex>
-void print_parent_map(ParentMap p, Vertex s, Vertex t) {
+void print_parent_map(ParentMap &p, Vertex s, Vertex t) {
 	Vertex v = t;
 	int n = 50;
+	if (p[t] == t) {
+		mylog << "\ninvalid parent map";
+		return;
+	}
 	mylog << "\n";
 	do {
 		mylog << v << ',';

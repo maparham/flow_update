@@ -3,6 +3,12 @@
 #include <boost/graph/topological_sort.hpp>
 #include <boost/graph/depth_first_search.hpp>
 
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "helpers.hpp"
 #include "flowpairgenerator.hpp"
 
@@ -43,12 +49,29 @@ bool isJoinNode(const Vertex<Graph> &v, const Graph &g, FlowID fid) {
 	return fold && fnew;
 }
 
-template<class FPair, class Graph, class Block>
-void computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
-	myTypes::VertexList sorted;
-	topological_sort(p, std::back_inserter(sorted));
+bool edgeExists(const Edge<myTypes::MyGraph> &e, const myTypes::MyGraph &g) {
 
-	mylog << "A topomylogical ordering: ";
+	mylog << " \nedgeExists:";
+	auto u_global = source(e, g.root());
+	auto v_global = target(e, g.root());
+	auto res1 = g.find_vertex(u_global);
+	auto res2 = g.find_vertex(v_global);
+
+	return res1.second && res2.second;
+//	return edge(source(e, g), target(e, g), g).second;
+//	return !(source(ee, g) == g.null_vertex() || target(ee, g) == g.null_vertex());
+}
+
+template<class FPair, class Graph, class Block>
+bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
+	myTypes::VertexList sorted;
+
+	if (!topological_sort(p, std::back_inserter(sorted))) { // if not a DAG
+		mylog << "\nnot a DAG, flow=" << fid;
+		return false;
+	}
+
+	mylog << "A topological ordering: ";
 	for (auto ii = sorted.rbegin(); ii != sorted.rend(); ++ii)
 		mylog << *ii << "_" << isForkNode(*ii, p, fid) << "_"
 				<< isJoinNode(*ii, p, fid) << ",";
@@ -71,7 +94,13 @@ void computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
 		}
 
 		if (isForkNode(*vi, p, fid)) {
-			block = &g.create_subgraph(); // next block
+			block = &(g.create_subgraph()); // next block
+//			add_vertex(0, *block);
+//			add_vertex(3, *block);
+//			mylog << "\n*block:\n";
+//			print_graph(*block);
+//			edgeExists(*edges(g).first, *block);
+
 			get_property(*block, graph_name) = fid;
 			mylog << "\nadding fork node " << *vi;
 			add_vertex(*vi, *block);
@@ -88,15 +117,11 @@ void computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
 		}
 		added = false;
 	}
-}
-
-bool edgeExists(const Edge<myTypes::MyGraph> &e, const myTypes::MyGraph &g) {
-	auto ee = g.global_to_local(e);
-	return edge(source(ee, g), target(ee, g), g).second;
+	return true;
 }
 
 void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
-		myTypes::MyGraph root, myTypes::DAG &dependency) {
+		myTypes::MyGraph &root, myTypes::Directed &dependency) {
 	// here only 2 flow-pairs is assumed
 	typename graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 
@@ -108,7 +133,6 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 //	print_graph(*blocks[2]);
 
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
-
 		auto enditr = end(root[*ei].flows), beginitr = begin(root[*ei].flows);
 
 		auto oldFlow = find_if(beginitr, enditr,
@@ -127,62 +151,71 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 			continue; // sufficient capacity for 2 flows
 		}
 
-		mylog << "\nhandling target edge " << edgeToStr(*ei, root);
+		mylog << "\nhandling target edge " << edgeToStr((*ei), root);
 
-		int b1_idx = 0, b2_idx = 0;
-		for (auto b1 = blocks.begin(); b1 != blocks.end(); ++b1, ++b1_idx) {
-			int b1_fid = get_property(**b1, graph_name);
-			b2_idx = b1_idx + 1;
+		mylog << "\n# of blocks=" << blocks.size();
 
-			for (auto b2 = b1 + 1; b2 != blocks.end(); ++b2, ++b2_idx) {
-				int b2_fid = get_property(**b2, graph_name);
-				if (b1_fid == b2_fid)
+		for (int b1 = 0; b1 < blocks.size(); ++b1) {
+
+			int b1_fid = get_property(*blocks[b1], graph_name);
+
+			for (int b2 = b1 + 1; b2 < blocks.size(); ++b2) {
+
+				int b2_fid = get_property(*blocks[b2], graph_name);
+				if (b1_fid == b2_fid) {
+					mylog << "same fids=>continue";
 					continue;
-
-				bool flag1, flag2;
-				if (!(flag1 = edgeExists(*ei, **b1))
-						|| !(flag2 = edgeExists(*ei, **b2))) {
-//					mylog << "\nflag1=" << flag1 << " b1_idx=" << b1_idx
-//							<< " flag2=" << flag2 << " b2_idx=" << b2_idx
-//							<< "\n";
-					continue;//  b1 and b2 do not share the edge
 				}
+
+				if (!edgeExists(*ei, *blocks[b1])
+						|| !edgeExists(*ei, *blocks[b2])) {
+					mylog << "blocks do not overlap on the edge "
+							<< edgeToStr(*ei, root);
+					continue; //  b1 and b2 do not share the edge
+				}
+				mylog << " edgeExists in both";
 				// now add the dependency edge
 				// the edge must point to the block vertex whose old flow is assigned to the link *ei
 				if (fid_old == b2_fid && fid_new == b1_fid) {
-					mylog << "\nadding dependency between blocks:" << b1_idx
-							<< "->" << b2_idx;
-					add_edge(b1_idx, b2_idx, dependency);
+					mylog << "\nadding dependency between blocks:" << b1 << "->"
+							<< b2;
+					add_edge(b1, b2, dependency);
 
 				} else if (fid_old == b1_fid && fid_new == b2_fid) {
-					mylog << "\nadding   dependency between blocks:" << b2_idx
-							<< "->" << b1_idx;
-					add_edge(b2_idx, b1_idx, dependency);
+					mylog << "\nadding dependency between blocks1:" << b2
+							<< "->" << b1;
+					add_edge(b2, b1, dependency);
+
+				} else {
+					mylog << "\nsomething is wrong! **b2_idx=" << b2
+							<< " b2_fid=" << b2_fid;
 				}
 			}
 		}
 	}
-	//add_edge(0, 1, dependency);
+//	mylog << "dummy dependency";
+//	add_edge(1, 0, dependency);
 }
 
+template<class Graph>
 struct cycle_detector: public default_dfs_visitor {
-	cycle_detector(myTypes::DAG &myDAG, bool &cycle, int &diameter) :
+	cycle_detector(Graph &myDAG, bool &cycle, int &diameter) :
 			myDAG(myDAG), has_cycle(cycle), diameter(diameter) {
 	}
-	void back_edge(const Edge<myTypes::DAG> &e, const myTypes::DAG &g) {
+	void back_edge(const Edge<Graph> &e, const Graph &g) {
 		has_cycle = true;
 	}
-	void discover_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+	void discover_vertex(const Vertex<Graph> &v, const Graph &g) {
 //		mylog << "\ndiscover_vertex " << v;
 		put(vertex_distance, myDAG, v, 0); // init
 	}
-	void start_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+	void start_vertex(const Vertex<Graph> &v, const Graph &g) {
 //		mylog << "\nstart_vertex " << v;
 	}
-	void finish_vertex(const Vertex<myTypes::DAG> &v, const myTypes::DAG &g) {
+	void finish_vertex(const Vertex<Graph> &v, const Graph &g) {
 //		mylog << "\nfinish_vertex " << v;
 	}
-	void finish_edge(const Edge<myTypes::DAG> &e, const myTypes::DAG &g) {
+	void finish_edge(const Edge<Graph> &e, const Graph &g) {
 //		mylog << "\nfinish_edge " << source(e, g);
 		int h_src = get(vertex_distance, g)[source(e, g)];
 		int h_tar = get(vertex_distance, g)[target(e, g)];
@@ -191,65 +224,60 @@ struct cycle_detector: public default_dfs_visitor {
 //		mylog << "\nheight of v=" << source(e, g) << " is " << h_src;
 		diameter = max(diameter, h_src); // the max height so far
 	}
-	void forward_or_cross_edge(const Edge<myTypes::DAG> &e,
-			const myTypes::DAG &g) {
+	void forward_or_cross_edge(const Edge<Graph> &e, const Graph &g) {
 //		mylog << "\nforward_or_cross_edge " << target(e, g);
 //		int h_ = get(vertex_distance, g)[target(e, g)]; // height value from a previously finished vertex
 //		mylog << "\nheight of v=" << target(e, g) << " is " << h_;
 		//height = h_; // new start value
 		// n finish_edge will be called on source(e, g)
 	}
-	myTypes::DAG &myDAG;
+	Graph &myDAG;
 	bool &has_cycle;
 	int &diameter;
 };
 
-myTypes::Result evaluate(myTypes::DAG &g) {
+template<class Graph>
+myTypes::Result evaluate(Graph &g) {
 	bool has_cycle = false;
 	int diameter = 0;
-	cycle_detector sd(g, has_cycle, diameter);
+	cycle_detector<Graph> sd(g, has_cycle, diameter);
 	depth_first_search(g, visitor(sd));
 	return myTypes::Result(has_cycle, diameter);
 }
 
+void handler(int sig) {
+	void *array[10];
+	size_t size;
+
+	// get void*'s for all entries on the stack
+	size = backtrace(array, 10);
+
+	// print out all the frames to stderr
+	fprintf(stderr, "Error: signal %d:\n", sig);
+	backtrace_symbols_fd(array, size, STDERR_FILENO);
+	exit(1);
+}
+
 int main(int, char*[]) {
+	signal(SIGSEGV, handler);   // install our handler
 
 	// the network graph
 	myTypes::MyGraph g(0);
 	vector<myTypes::MyGraph*> blocks;
 
+	int diameter, noBlocks;
+	bool isDAG;
 	do {
 		g = myTypes::MyGraph(0);
 
-		// the first flow pair
-		myTypes::MyGraph pair1 = g.create_subgraph();
-		// the second flow pair
-		myTypes::MyGraph pair2 = g.create_subgraph();
+//		exampleNetwork(g, pair1, pair2);
+//		example_cyclic(g);
+		//example1(g);
 
-		//exampleNetwork(g, pair1, pair2);
-
-		mt19937 rng;
-		rng.seed(uint32_t(time(0)));
-		generate_random_graph(g, 5, 15, rng, false, false);
-		graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
-		for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
-			put(edge_weight, g, *e_it, 1);
-			g[*e_it].flows[BLUE].usage = flow_none;
-			g[*e_it].flows[RED].usage = flow_none;
-		}
-
-		bool success = generateFlowPairs1(g, pair1, pair2, vertex(0, g),
-				vertex(1, g));
-
-		if (!success) {
-			mylog << "\npairs could not be generated";
-			//return 0;
+		if (!randomNetwork(g, 5, 7)) {
 			continue;
 		}
-
-		postGenerate(g);
-		mylog << "\ngenerated flow pairs:\n";
-		print_network(g);
+		print_network1(g, "\ngenerated flow pairs:");
 
 		FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED,
 				g);
@@ -258,29 +286,41 @@ int main(int, char*[]) {
 
 		FlowPair p_blue(g, edgeFilter1, vertexFilter1);
 		FlowPair p_red(g, edgeFilter2, vertexFilter2);
-		//print_network(p_blue);
+
+		//		print_network1(p_blue, "BLUE pair:");
+		//		print_network1(p_red, "RED pair:");
 
 		blocks.clear();
-		computeBlocks(p_blue, g, BLUE, blocks);
-		computeBlocks(p_red, g, RED, blocks);
-		mylog << "blocks.size()=" << blocks.size() << "num_vertices="
+		if (!computeBlocks(p_blue, g, BLUE, blocks)
+				|| !computeBlocks(p_red, g, RED, blocks)) {
+			continue;
+		}
+		mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
 				<< num_vertices(*blocks[0]) << "\n";
 
-	} while (blocks.size() < 3);
+#ifdef DEBUG
+		for (auto *b : blocks) {
+			mylog << "\nprinting block for flow: "
+			<< get_property(*b, graph_name) << "\n";
+			print_graph(*b, get(vertex_name, *b), mylog);
+		}
+#endif
+		myTypes::Directed dep(blocks.size());
 
+		computeDependencyGraph(blocks, g, dep);
+		mylog << "\nprinting dependency graph:\n";
+		//print_graph(dep);
+		myTypes::Result res = evaluate(dep);
+		diameter = res.second;
+		isDAG = !res.first;
+		noBlocks = blocks.size();
+		mylog << "\nhas_cycle? " << res.first << " diameter=" << diameter
+				<< "\n";
+
+	} while ((diameter < 2 || !isDAG));
+
+	cout << "\nnoBlocks=" << noBlocks << " diameter=" << diameter << " isDAG="
+			<< isDAG;
 	print_network_forced(g);
-
-	for (auto *b : blocks) {
-		cout << "\nprinting block for flow: " << get_property(*b, graph_name) << endl;
-		print_graph(*b, get(vertex_name, *b));
-	}
-
-	myTypes::DAG dep(blocks.size());
-	computeDependencyGraph(blocks, g, dep);
-	cout << "\nprinting dependency graph:\n";
-	print_graph(dep);
-	myTypes::Result res = evaluate(dep);
-	cout << "\nhas_cycle? " << res.first << " diameter=" << res.second << "\n";
-
 	return 0;
 }
