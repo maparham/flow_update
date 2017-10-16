@@ -62,7 +62,7 @@ size_t bestNextEdges(Graph &g, int d, Vertex<Graph> s, Vertex<Graph> t,
 	Edge<Graph> bestEdge; //  best edge in this call
 
 	if (d < 0) {
-		mylog << " \nbuttom level reached, bestSP=" << len;
+//		mylog << " \nbuttom level reached, bestSP=" << len;
 		return len;
 
 	} else { // try all edge deletes
@@ -70,21 +70,21 @@ size_t bestNextEdges(Graph &g, int d, Vertex<Graph> s, Vertex<Graph> t,
 			auto pair = edge(parent[v], v, g);
 			auto e = pair.first;
 			auto ew = get(edge_weight, g, e);
-			mylog << "\nhide edge " << edgeToStr(parent[v], v, g);
+//			mylog << "\nhide edge " << edgeToStr(parent[v], v, g);
 			put(edge_weight, g, e, INF); // hide the edge
 
-			mylog << " \n  calling bestNextEdges(),d-1=" << d - 1;
+//			mylog << " \n  calling bestNextEdges(),d-1=" << d - 1;
 
 			len = bestNextEdges(g, d - 1, s, t, result); // SP not using e and the next best edges selected recursively (i.e candidates)
 
-			mylog << " \n  bestNextEdges() returned with len=" << len;
-			mylog << "\nuhide edge " << edgeToStr(parent[v], v, g);
+//			mylog << " \n  bestNextEdges() returned with len=" << len;
+//			mylog << "\nuhide edge " << edgeToStr(parent[v], v, g);
 			put(edge_weight, g, e, ew); // unhide the edge
-			mylog << "\nspLen=" << len << " bestSP=" << bestSP;
+//			mylog << "\nspLen=" << len << " bestSP=" << bestSP;
 
 			if (len < bestSP) {
 				bestSP = len;
-				mylog << "\nbestSP updated to " << bestSP;
+//				mylog << "\nbestSP updated to " << bestSP;
 				bestEdge = e;
 				bestCandidates.clear();
 				bestCandidates.insert(bestCandidates.end(), result.begin(),

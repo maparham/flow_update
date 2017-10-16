@@ -17,7 +17,7 @@ using namespace boost;
 using namespace std;
 
 #define INF numeric_limits<int>::max()
-#define DEBUG 1
+//#define DEBUG 1
 
 struct Logger: std::ostream {
 	template<typename T>

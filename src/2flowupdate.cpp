@@ -266,16 +266,17 @@ int main(int, char*[]) {
 	myTypes::MyGraph g(0);
 	vector<myTypes::MyGraph*> blocks;
 
-	int diameter, noBlocks;
+	randomNetwork randnet;
+	int diameter = -1, noBlocks = -1;
 	bool isDAG;
 	do {
 		g = myTypes::MyGraph(0);
 
 //		exampleNetwork(g);
-//			example_cyclic(g);
+//		example_cyclic(g);
 //		example1(g);
 
-		if (!randomNetwork(g, 5, 7)) {
+		if (!randnet.generate(g, 5, 7)) {
 			continue;
 		}
 
@@ -303,8 +304,8 @@ int main(int, char*[]) {
 #ifdef DEBUG
 		for (auto *b : blocks) {
 			mylog << "\nprinting block for flow: "
-					<< get_property(*b, graph_name) << "\n";
-			print_graph(*b, get(vertex_name, *b), mylog);
+			<< get_property(*b, graph_name) << "\n";
+			print_network(*b);
 		}
 #endif
 		myTypes::Directed dep(blocks.size());
@@ -319,7 +320,7 @@ int main(int, char*[]) {
 		mylog << "\nhas_cycle? " << res.first << " diameter=" << diameter
 				<< "\n";
 
-	} while ((noBlocks < 3 || !isDAG));
+	} while ((!isDAG || diameter < 2));
 
 	cout << "\nnoBlocks=" << noBlocks << " diameter=" << diameter << " isDAG="
 			<< isDAG;

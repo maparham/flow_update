@@ -91,73 +91,6 @@ bool generateFlowPairs(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 }
 
 template<class Graph>
-bool generateFlowPairs1(Graph &g, Graph &pair1, Graph &pair2, Vertex<Graph> s,
-		Vertex<Graph> t) {
-
-	auto k = num_vertices(g);
-	// define pairs for flow1 and flow2, as parent maps
-	ParentMap f1old(k);
-	ParentMap f1new(k);
-	ParentMap f2old(k);
-	ParentMap f2new(k);
-
-	add_vertex(s, pair1);
-	add_vertex(s, pair2);
-
-	mylog << "\nold flow for pair1:";
-	bool found = k_SP(g, s, t, 0, f1old);
-	if (found) {
-		print_parent_map(f1old, s, t);
-		addSP(g, pair1, BLUE, flow_old, f1old, s, t);
-		//print_network(pair1);
-
-	} else {
-		mylog << "\ns,t is disconnected";
-		return false;
-	}
-
-	mylog << "\nold flow for pair2:";
-	found = k_SP(g, s, t, 1, f2old);
-	if (found) {
-		print_parent_map(f2old, s, t);
-		addSP(g, pair2, RED, flow_old, f2old, s, t);
-
-	} else { // no more s,t path is left
-		mylog << "\n SP2 does not exist.";
-		return false;
-	}
-
-	mylog << "\nnew flow for pair1:";
-	found = k_SP(g, s, t, 2, f1new);
-	if (found) {
-		print_parent_map(f1new, s, t);
-		addSP(g, pair1, BLUE, flow_new, f1new, s, t);
-		//print_network(pair1);
-
-	} else { // no more s,t path is left
-		mylog << "\n SP3 does not exist, taking flow2_old path instead";
-		addSP(g, pair1, BLUE, flow_new, f2old, s, t);
-	}
-
-	//print_network(pair2);
-
-	mylog << "\nnew flow for pair2:";
-	found = k_SP(g, s, t, 3, f2new);
-	if (found) {
-		mylog << "nextSPExist\n";
-		print_parent_map(f2new, s, t);
-		addSP(g, pair2, RED, flow_new, f2new, s, t);
-
-	} else { // no more s,t path is left
-		mylog << "\nSP4 does not exist, taking flow1_old path instead";
-		addSP(g, pair2, RED, flow_new, f1old, s, t);
-	}
-	//print_network(pair2);
-
-	return true;
-}
-
-template<class Graph>
 bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 
 	auto n = num_vertices(g);
@@ -170,7 +103,7 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	bool found;
 
 	vector<int> perm = { 0, 1, 2, 3 };
-	random_shuffle(perm.begin(), perm.end());
+//	random_shuffle(perm.begin(), perm.end());
 
 	mylog << "\nold flow for pair1 uses SP:" << perm[0];
 	found = k_SP(g, s, t, perm[0], f1old);
@@ -250,6 +183,9 @@ void postGenerate(myTypes::MyGraph &g) {
 }
 
 void setCapacity(myTypes::MyGraph &g) {
+	/* initialize random seed: */
+	srand(time(NULL));
+
 	graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 	for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
 		if (g[*ei].flows[BLUE].usage == flow_none
@@ -258,6 +194,9 @@ void setCapacity(myTypes::MyGraph &g) {
 
 		} else if (g[*ei].flows[BLUE].usage == g[*ei].flows[RED].usage) { // i.e. both flows chose either flow_old or flow_new on this edge
 			g[*ei].capacity = 2;
+
+		} else {
+			g[*ei].capacity = rand() % 2 + 1;
 		}
 	}
 	// remove non-flow edges
@@ -267,20 +206,25 @@ void setCapacity(myTypes::MyGraph &g) {
 			}, g);
 }
 
-bool randomNetwork(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
+class randomNetwork {
 	mt19937 rng;
-	rng.seed(uint32_t(time(0)));
-	generate_random_graph(g, n_v, n_e, rng, false, false);
-
-	postGenerate(g);
-
-	bool success = generateFlowPairs_rand(g, vertex(0, g), vertex(1, g));
-	if (!success) {
-		mylog << "\npairs could not be generated";
-		return false;
+public:
+	randomNetwork() {
+		rng.seed(uint32_t(time(0)));
 	}
-	setCapacity(g);
-	return true;
-}
+	bool generate(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
+		generate_random_graph(g, n_v, n_e, rng, false, false);
+
+		postGenerate(g);
+
+		bool success = generateFlowPairs_rand(g, vertex(0, g), vertex(1, g));
+		if (!success) {
+			mylog << "\npairs could not be generated";
+			return false;
+		}
+		setCapacity(g);
+		return true;
+	}
+};
 
 #endif /* FLOWPAIRGENERATOR_HPP_ */
