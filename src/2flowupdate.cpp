@@ -11,6 +11,7 @@
 
 #include "helpers.hpp"
 #include "flowpairgenerator.hpp"
+#include "testcases.hpp"
 
 using namespace boost;
 using namespace std;
@@ -270,13 +271,14 @@ int main(int, char*[]) {
 	do {
 		g = myTypes::MyGraph(0);
 
-//		exampleNetwork(g, pair1, pair2);
-//		example_cyclic(g);
-		//example1(g);
+//		exampleNetwork(g);
+//			example_cyclic(g);
+//		example1(g);
 
 		if (!randomNetwork(g, 5, 7)) {
 			continue;
 		}
+
 		print_network1(g, "\ngenerated flow pairs:");
 
 		FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED,
@@ -301,7 +303,7 @@ int main(int, char*[]) {
 #ifdef DEBUG
 		for (auto *b : blocks) {
 			mylog << "\nprinting block for flow: "
-			<< get_property(*b, graph_name) << "\n";
+					<< get_property(*b, graph_name) << "\n";
 			print_graph(*b, get(vertex_name, *b), mylog);
 		}
 #endif
@@ -317,7 +319,7 @@ int main(int, char*[]) {
 		mylog << "\nhas_cycle? " << res.first << " diameter=" << diameter
 				<< "\n";
 
-	} while ((diameter < 2 || !isDAG));
+	} while ((noBlocks < 3 || !isDAG));
 
 	cout << "\nnoBlocks=" << noBlocks << " diameter=" << diameter << " isDAG="
 			<< isDAG;
