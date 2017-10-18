@@ -10,7 +10,6 @@
 
 #include "helpers.hpp"
 
-
 // Make convenient labels for the vertices
 struct Example {
 	int S;
@@ -143,6 +142,66 @@ void example1(myTypes::MyGraph &g) {
 	}
 }
 
+void longDependency(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(0);
+	Edge<myTypes::MyGraph> e;
+	int s = 0, t = 1;
 
+	e = add_edge(s, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+
+	e = add_edge(s, 3, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(s, 4, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(2, 4, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+
+	e = add_edge(2, 5, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(2, 6, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(3, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(4, 5, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(5, 6, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(5, 7, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+
+	e = add_edge(5, t, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(6, 7, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(7, t, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+}
 
 #endif /* TESTCASES_HPP_ */

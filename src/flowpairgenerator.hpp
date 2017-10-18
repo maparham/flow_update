@@ -102,8 +102,8 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 
 	bool found;
 
-	vector<int> perm = { 0, 1, 2, 3 };
-//	random_shuffle(perm.begin(), perm.end());
+	vector<int> perm = { 0, 1, 2, 0 };
+	random_shuffle(perm.begin(), perm.end());
 
 	mylog << "\nold flow for pair1 uses SP:" << perm[0];
 	found = k_SP(g, s, t, perm[0], f1old);
@@ -165,66 +165,90 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	return true;
 }
 
-void postGenerate(myTypes::MyGraph &g) {
-	// set vertex names
-	auto indexMap = get(vertex_index, g);
-	auto nameMap = get(vertex_name, g);
-	typename graph_traits<myTypes::MyGraph>::vertex_iterator vi, vend;
-	for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
-		put(nameMap, *vi, to_string(indexMap[*vi]));
-	}
-
-	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
-	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
-		put(edge_weight, g, *e_it, 1);
-		g[*e_it].flows[BLUE].usage = flow_none;
-		g[*e_it].flows[RED].usage = flow_none;
-	}
-}
-
-void setCapacity(myTypes::MyGraph &g) {
-	/* initialize random seed: */
-	srand(time(NULL));
-
-	graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
-	for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-		if (g[*ei].flows[BLUE].usage == flow_none
-				&& g[*ei].flows[RED].usage == flow_none) {
-			g[*ei].capacity = -1;
-
-		} else if (g[*ei].flows[BLUE].usage == g[*ei].flows[RED].usage) { // i.e. both flows chose either flow_old or flow_new on this edge
-			g[*ei].capacity = 2;
-
-		} else {
-			g[*ei].capacity = rand() % 2 + 1;
+void setVertexNames(myTypes::MyGraph &g) {
+			// set vertex names
+			auto indexMap = get(vertex_index, g);
+			auto nameMap = get(vertex_name, g);
+			typename graph_traits<myTypes::MyGraph>::vertex_iterator vi, vend;
+			for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
+				put(nameMap, *vi, to_string(indexMap[*vi]));
+			}
 		}
-	}
-	// remove non-flow edges
-	remove_edge_if(
-			[&g](Edge<myTypes::MyGraph> e) {
-				return g[e].flows[BLUE].usage == flow_none&& g[e].flows[RED].usage == flow_none;
-			}, g);
-}
 
-class randomNetwork {
-	mt19937 rng;
-public:
-	randomNetwork() {
-		rng.seed(uint32_t(time(0)));
-	}
-	bool generate(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
-		generate_random_graph(g, n_v, n_e, rng, false, false);
-
-		postGenerate(g);
-
-		bool success = generateFlowPairs_rand(g, vertex(0, g), vertex(1, g));
-		if (!success) {
-			mylog << "\npairs could not be generated";
-			return false;
+		void postGenerate(myTypes::MyGraph &g) {
+			setVertexNames(g);
+			graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+			for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+				put(edge_weight, g, *e_it, 1);
+				g[*e_it].flows[BLUE].usage = flow_none;
+				g[*e_it].flows[RED].usage = flow_none;
+			}
 		}
-		setCapacity(g);
-		return true;
-	}
-};
+
+		void setCapacity(myTypes::MyGraph &g) {
+			/* initialize random seed: */
+			srand(time(NULL));
+
+			graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
+			for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
+				if (g[*ei].flows[BLUE].usage == flow_none
+						&& g[*ei].flows[RED].usage == flow_none) {
+					g[*ei].capacity = -1;
+
+				} else if (g[*ei].flows[BLUE].usage
+						== g[*ei].flows[RED].usage) { // i.e. both flows chose either flow_old or flow_new on this edge
+					g[*ei].capacity = 2;
+
+				} else {
+					g[*ei].capacity = rand() % 2 + 1;
+				}
+			}
+			// remove non-flow edges
+			remove_edge_if(
+					[&g](Edge<myTypes::MyGraph> e) {
+						return g[e].flows[BLUE].usage == flow_none&& g[e].flows[RED].usage == flow_none;
+					}, g);
+		}
+
+		class randomNetwork {
+			mt19937 rng;
+		public:
+			randomNetwork() {
+				rng.seed(uint32_t(time(0)));
+			}
+			bool generate(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
+				generate_random_graph(g, n_v, n_e, rng, false, false);
+
+				postGenerate(g);
+
+				Vertex<myTypes::MyGraph> s = 0, t = 1;
+				int bestS = MINUSINF, bestT=INF;
+				typename graph_traits<myTypes::MyGraph>::vertex_iterator v,
+						vend;
+				/*
+				 for (tie(v, vend) = vertices(g); v != vend; ++v) {
+				 int dout = out_degree(*v, g), din = in_degree(*v, g);
+				 //int m = dout - din;
+				 if (bestS < dout) {
+				 //			if (out_degree(*v, g) > 1) {
+				 s = *v;
+				 bestS = dout;
+				 } else if (bestT < din) {
+				 //			} else if (in_degree(*v, g) > 1) {
+				 t = *v;
+				 bestT = din;
+				 }
+				 }
+				 */
+
+				bool success = generateFlowPairs_rand(g, s, t);
+				if (!success) {
+					mylog << "\npairs could not be generated";
+					return false;
+				}
+				setCapacity(g);
+				return true;
+			}
+		};
 
 #endif /* FLOWPAIRGENERATOR_HPP_ */

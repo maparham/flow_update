@@ -120,7 +120,7 @@ bool k_SP(Graph &g, Vertex<Graph> s, Vertex<Graph> t, int k,
 	for (auto e : excludeList) {
 		put(edge_weight, g, e, 1); // unhide the excluded edges
 	}
-	return len < INF;
+	return len < INF&& parent[t]!=t;
 }
 
 #endif /* KSP_HPP_ */

@@ -17,7 +17,8 @@ using namespace boost;
 using namespace std;
 
 #define INF numeric_limits<int>::max()
-//#define DEBUG 1
+#define MINUSINF numeric_limits<int>::min()
+#define DEBUG 1
 
 struct Logger: std::ostream {
 	template<typename T>
@@ -255,9 +256,9 @@ void print_parent_map(ParentMap &p, Vertex s, Vertex t) {
 template<typename G>
 void save_dot_file(std::string const& fname, G& graph) {
 	dynamic_properties dp;
-//	dp.property("node_id", boost::get(&VertexProperties::id, graph));
-//	dp.property("label", boost::get(&VertexProperties::label, graph));
-//	dp.property("weight", boost::get(&EdgeProperties::weight, graph));
+	dp.property("node_id", get(vertex_index, graph));
+	dp.property("label", get(vertex_name, graph));
+	dp.property("weight", get(edge_weight, graph));
 
 	std::ofstream ofs(fname);
 	write_graphviz_dp(ofs, graph, dp);

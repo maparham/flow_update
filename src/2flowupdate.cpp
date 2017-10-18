@@ -118,7 +118,7 @@ bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
 		}
 		added = false;
 	}
-	return true;
+	return blocks.size() > 0;
 }
 
 void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
@@ -267,19 +267,28 @@ int main(int, char*[]) {
 	vector<myTypes::MyGraph*> blocks;
 
 	randomNetwork randnet;
-	int diameter = -1, noBlocks = -1;
+	int diameter = -1, nofBlocks = -1;
+	double count = 0, acceptance = 0;
 	bool isDAG;
+	srand(time(NULL));
+
 	do {
+		++count;
 		g = myTypes::MyGraph(0);
 
 //		exampleNetwork(g);
 //		example_cyclic(g);
 //		example1(g);
+		longDependency(g);
+		setVertexNames(g);
 
-		if (!randnet.generate(g, 5, 7)) {
-			continue;
-		}
-
+		// generate the underlying graph
+//		int nof_vert = rand() % 20 + 6;
+//		int nof_edges = nof_vert + rand() % (1 * nof_vert);
+//		if (!randnet.generate(g, nof_vert, nof_edges)) {
+//			continue;
+//		}
+		++acceptance;
 		print_network1(g, "\ngenerated flow pairs:");
 
 		FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED,
@@ -296,6 +305,7 @@ int main(int, char*[]) {
 		blocks.clear();
 		if (!computeBlocks(p_blue, g, BLUE, blocks)
 				|| !computeBlocks(p_red, g, RED, blocks)) {
+			mylog << "\nblocks not generated";
 			continue;
 		}
 		mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
@@ -304,26 +314,33 @@ int main(int, char*[]) {
 #ifdef DEBUG
 		for (auto *b : blocks) {
 			mylog << "\nprinting block for flow: "
-			<< get_property(*b, graph_name) << "\n";
+					<< get_property(*b, graph_name) << "\n";
 			print_network(*b);
 		}
 #endif
 		myTypes::Directed dep(blocks.size());
 
 		computeDependencyGraph(blocks, g, dep);
+
 		mylog << "\nprinting dependency graph:\n";
-		//print_graph(dep);
+		print_graph(dep);
+
 		myTypes::Result res = evaluate(dep);
 		diameter = res.second;
 		isDAG = !res.first;
-		noBlocks = blocks.size();
+		nofBlocks = blocks.size();
 		mylog << "\nhas_cycle? " << res.first << " diameter=" << diameter
 				<< "\n";
+		if ((size_t) count % 500 == 0)
+			cout << acceptance / count << "\n";
 
-	} while ((!isDAG || diameter < 2));
+	} while ((diameter < 3));
 
-	cout << "\nnoBlocks=" << noBlocks << " diameter=" << diameter << " isDAG="
+	cout << "\nnoBlocks=" << nofBlocks << " diameter=" << diameter << " isDAG="
 			<< isDAG;
 	print_network_forced(g);
+	save_dot_file(
+			"diameter" + to_string(diameter) + "DAG" + to_string(isDAG)
+					+ ".dot", g);
 	return 0;
 }
