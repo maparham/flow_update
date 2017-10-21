@@ -279,8 +279,9 @@ int main(int, char*[]) {
 //		exampleNetwork(g);
 //		example_cyclic(g);
 //		example1(g);
-		longDependency(g);
-		setVertexNames(g);
+//		longDependency(g);
+		StefanGraph sg(g, 5);
+//		setVertexNames(g);
 
 		// generate the underlying graph
 //		int nof_vert = rand() % 20 + 6;
@@ -323,7 +324,7 @@ int main(int, char*[]) {
 		computeDependencyGraph(blocks, g, dep);
 
 		mylog << "\nprinting dependency graph:\n";
-		print_graph(dep);
+		//print_graph(dep);
 
 		myTypes::Result res = evaluate(dep);
 		diameter = res.second;
@@ -334,7 +335,7 @@ int main(int, char*[]) {
 		if ((size_t) count % 500 == 0)
 			cout << acceptance / count << "\n";
 
-	} while ((diameter < 3));
+	} while ((diameter < 5));
 
 	cout << "\nnoBlocks=" << nofBlocks << " diameter=" << diameter << " isDAG="
 			<< isDAG;

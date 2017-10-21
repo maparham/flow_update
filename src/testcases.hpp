@@ -190,7 +190,7 @@ void longDependency(myTypes::MyGraph &g) {
 	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_old);
 
-	e = add_edge(5, t, g).first;
+	e = add_edge(5, 10, g).first;
 	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_new);
 
@@ -199,9 +199,91 @@ void longDependency(myTypes::MyGraph &g) {
 	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(7, t, g).first;
+	e = add_edge(7, 11, g).first;
 	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(7, 10, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+
+	e = add_edge(10, 11, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(7, t, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(11, t, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
 }
+
+class StefanGraph {
+	using G=myTypes::MyGraph;
+public:
+	StefanGraph(G &g, int length) :
+			g(g), k(length) {
+
+		upper.resize(k);
+		lower.resize(k);
+		put(vertex_name, g, s = add_vertex(g), "s");
+		put(vertex_name, g, t = add_vertex(g), "t");
+
+		for (int i = 0; i < k; ++i) {
+			upper[i] = add_vertex(g);
+			lower[i] = add_vertex(g);
+			put(vertex_name, g, upper[i], "U" + to_string(i));
+			put(vertex_name, g, lower[i], "L" + to_string(i));
+		}
+
+		addRandomPath(BLUE, flow_old);
+		addRandomPath(BLUE, flow_new);
+		addRandomPath(RED, flow_old);
+		addRandomPath(RED, flow_new);
+		/* initialize random seed: */
+		srand(time(NULL));
+
+	}
+
+	void addRandomPath(int fid, Usage_E usage) {
+		int r, jump;
+		Vertex<G> next, currNode = s;
+		Edge<G> e;
+		enum {
+			UPPER, LOWER
+		} current = UPPER;
+		for (int i = -1; i < k - 1; ++i) {
+			r = rand() % 2;
+			jump = (currNode == s) ? i + 1 : i + 1 + rand() % (k - i - 1);
+
+			if (r == UPPER) {
+				next = (current == LOWER) ? upper[jump] : upper[i + 1];
+				mylog << "next on upper:" << get(vertex_name, g, next);
+				current = UPPER;
+
+			} else { // r==LOWER
+				next = (current == UPPER) ? lower[jump] : lower[i + 1];
+				mylog << "next on lower:" << get(vertex_name, g, next);
+				current = LOWER;
+			}
+			auto p = edge(currNode, next, g);
+			e = (p.second) ? p.first : add_edge(currNode, next, g).first; // stupid BGL doesn't provide a better way
+
+			currNode = next;
+			g[e].flows[fid] = usage;
+		}
+		// finish off at t
+		auto p = edge(currNode, t, g);
+		e = (p.second) ? p.first : add_edge(currNode, t, g).first;
+		g[e].flows[fid] = usage;
+	}
+	G &g;
+	Vertex<G> s, t;
+	int k;
+	vector<Vertex<G>> upper, lower;
+};
 
 #endif /* TESTCASES_HPP_ */

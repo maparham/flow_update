@@ -18,7 +18,7 @@ using namespace std;
 
 #define INF numeric_limits<int>::max()
 #define MINUSINF numeric_limits<int>::min()
-#define DEBUG 1
+//#define DEBUG 1
 
 struct Logger: std::ostream {
 	template<typename T>
