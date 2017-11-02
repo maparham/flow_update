@@ -1,10 +1,3 @@
-/*
- * testcases.hpp
- *
- *  Created on: 16 Oct 2017
- *      Author: mahmoud
- */
-
 #ifndef TESTCASES_HPP_
 #define TESTCASES_HPP_
 
@@ -20,12 +13,19 @@ struct Example {
 	int numNodes = 5;
 } example;
 
-void exampleNetwork(myTypes::MyGraph &g) {
-	put(vertex_name, g, example.S = add_vertex(g), "S");
-	put(vertex_name, g, example.T = add_vertex(g), "T");
-	put(vertex_name, g, example.W = add_vertex(g), "W");
-	put(vertex_name, g, example.U = add_vertex(g), "U");
-	put(vertex_name, g, example.V = add_vertex(g), "V");
+void setWeights(myTypes::MyGraph &g) {
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+}
+
+void paperExample(myTypes::MyGraph &g) {
+	put(vertex_name, g, example.S = add_vertex(g), "S0");
+	put(vertex_name, g, example.T = add_vertex(g), "T1");
+	put(vertex_name, g, example.W = add_vertex(g), "W2");
+	put(vertex_name, g, example.U = add_vertex(g), "U3");
+	put(vertex_name, g, example.V = add_vertex(g), "V4");
 
 	Edge<myTypes::MyGraph> e;
 	e = add_edge(example.U, example.W, g).first;
@@ -66,6 +66,38 @@ void exampleNetwork(myTypes::MyGraph &g) {
 	}
 }
 
+void minimalPair(myTypes::MyGraph &g) {
+	example.S = add_vertex(g);
+	example.T = add_vertex(g);
+	example.U = add_vertex(g);
+	Edge<myTypes::MyGraph> e;
+	e = add_edge(example.S, example.T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(example.S, example.U, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(example.U, example.T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_new);
+
+	setWeights(g);
+}
+
+void singleEdge(myTypes::MyGraph &g) {
+	example.S = add_vertex(g);
+	example.T = add_vertex(g);
+	Edge<myTypes::MyGraph> e;
+	e = add_edge(example.S, example.T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[RED] = Flow(flow_both);
+
+
+	setWeights(g);
+}
+
 void example_cyclic(myTypes::MyGraph &g) {
 	g = myTypes::MyGraph(4);
 	Edge<myTypes::MyGraph> e;
@@ -98,10 +130,7 @@ void example_cyclic(myTypes::MyGraph &g) {
 //	g[e].flows[RED] = Flow(flow_new);
 	g[e].flows[BLUE] = Flow(flow_new);
 
-	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
-	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
-		put(edge_weight, g, *e_it, 1);
-	}
+	setWeights(g);
 }
 
 void example1(myTypes::MyGraph &g) {
@@ -229,8 +258,8 @@ public:
 
 		upper.resize(k);
 		lower.resize(k);
-		put(vertex_name, g, s = add_vertex(g), "s");
-		put(vertex_name, g, t = add_vertex(g), "t");
+		put(vertex_name, g, example.S = s = add_vertex(g), "s");
+		put(vertex_name, g, example.S = t = add_vertex(g), "t");
 
 		for (int i = 0; i < k; ++i) {
 			upper[i] = add_vertex(g);
