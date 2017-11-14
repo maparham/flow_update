@@ -132,11 +132,11 @@ public:
 				foreach_edge(flowpair,
 						[&](int u, int v, Edge_label lbl) {
 
-							mylog<<"\nadding "<<ruvi("y",r,u,v,i);
+//							mylog<<"\nadding "<<ruvi("y",r,u,v,i);
 							const GRBVar& y_r_uvi = lp.addVar(0, 1, 0, GRB_CONTINUOUS, ruvi("y", r, u, v, i));
 
 							GRBLinExpr sum_r = 0;
-							// sum_{r'<=r}{x^r_vi}
+// sum_{r'<=r}{x^r_vi}
 							foreach_r([&](int r_) {
 										if (r_ <= r && r_ > 0) {
 											const GRBVar& x_rprime_vi = lp.getVarByName(rvi("x", r_, u, i));
@@ -173,25 +173,6 @@ public:
 
 				lp.update();
 
-				// f^r_{uvi}
-				foreach_edge(flowpair,
-						[&](int u, int v, Edge_label lbl) {
-
-							const GRBVar& f_r_uvi = lp.addVar(0, N, 0, GRB_CONTINUOUS, ruvi("f", r, u, v, i));
-							GRBLinExpr sum1_uz = 0, sum2_uz = 0;
-							foreach_outedge(flowpair, u, [&](int u_, int z, Edge_label lbl) {
-										if (u != u_) {
-											exit(-2);
-										}
-										const GRBVar& y_r_uzi = lp.getVarByName(ruvi("y", r, u, z, i));
-										const GRBVar& y_rminus1_uzi = lp.getVarByName(ruvi("y", r - 1, u, z, i));
-										sum1_uz += y_r_uzi;
-										sum2_uz += y_rminus1_uzi;
-									});
-							lp.addConstr(f_r_uvi - N*sum1_uz <= 0, ruvi("transientflow", r, u, v, i));
-							lp.addConstr(f_r_uvi - N*sum2_uz <= 0, ruvi("transientflow", r - 1, u, v, i));
-						});
-
 				// fork^r_{vi}
 //				GRBLinExpr m_r_i = 0;
 				foreach_v(flowpair,
@@ -200,6 +181,30 @@ public:
 							const GRBVar& x_r_vi = lp.getVarByName(rvi("x", r, v, i));
 							lp.addConstr(fork_r_vi - isForkNode(v, flowpair, i) * x_r_vi == 0, rvi("forknode", r, v, i));
 //							m_r_i += fork_r_vi;
+						});
+
+				lp.update();
+
+				// f^r_{uvi}
+				foreach_edge(flowpair,
+						[&](int u, int v, Edge_label lbl) {
+
+							const GRBVar& f_r_uvi = lp.addVar(0, N, 0, GRB_CONTINUOUS, ruvi("f", r, u, v, i));
+							GRBLinExpr sum1_uz = 0, sum2_uz = 0;
+//							foreach_outedge(flowpair, u, [&](int u_, int z, Edge_label lbl) {
+//										if (u != u_) {
+//											exit(-2);
+//										}
+//										const GRBVar& y_r_uzi = lp.getVarByName(ruvi("y", r, u, z, i));
+//										const GRBVar& y_rminus1_uzi = lp.getVarByName(ruvi("y", r - 1, u, z, i));
+//										sum1_uz += y_r_uzi;
+//										sum2_uz += y_rminus1_uzi;
+//									});
+							const GRBVar& y_r_uvi = lp.getVarByName(ruvi("y", r, u, v, i));
+							const GRBVar& y_rminus1_uvi = lp.getVarByName(ruvi("y", r - 1, u, v, i));
+							const GRBVar& fork_r_ui = lp.getVarByName(rvi("fork", r, u, i));
+							lp.addConstr(f_r_uvi - y_r_uvi - fork_r_ui<= 0, ruvi("transientflow", r, u, v, i));
+							lp.addConstr(f_r_uvi - y_rminus1_uvi - fork_r_ui<= 0, ruvi("transientflow", r - 1, u, v, i));
 						});
 
 				lp.update();

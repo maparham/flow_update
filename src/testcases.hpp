@@ -56,7 +56,7 @@ void paperExample(myTypes::MyGraph &g) {
 	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(example.V, example.T, g).first;
-	g[e].capacity = 1;
+	g[e].capacity = 2;
 	g[e].flows[RED] = Flow(flow_old);
 	g[e].flows[BLUE] = Flow(flow_new);
 
@@ -66,21 +66,24 @@ void paperExample(myTypes::MyGraph &g) {
 	}
 }
 
-void minimalPair(myTypes::MyGraph &g) {
+void minimalExample(myTypes::MyGraph &g) {
 	example.S = add_vertex(g);
 	example.T = add_vertex(g);
 	example.U = add_vertex(g);
 	Edge<myTypes::MyGraph> e;
 	e = add_edge(example.S, example.T, g).first;
 	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(example.S, example.U, g).first;
 	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
 
 	e = add_edge(example.U, example.T, g).first;
 	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
 
 	setWeights(g);

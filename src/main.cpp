@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <algorithm>
 
 #include "testcases.hpp"
 //#include "Saeed_alg.hpp"
@@ -35,7 +36,7 @@ int main(int, char*[]) {
 	//generate/load graph
 	paperExample(g);
 	//singleEdge(g);
-	//minimalPair(g);
+	//minimalExample(g);
 
 	// extract pairs
 	FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED, g);

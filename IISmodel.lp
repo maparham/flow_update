@@ -2,8 +2,113 @@
 Minimize
   R
 Subject To
- schedule: x_1_0_1 + x_2_0_1 = 1
- schedule: x_1_2_1 + x_2_2_1 = 1
+ schedule: x_1_0_0 + x_2_0_0 + x_3_0_0 + x_4_0_0 = 1
+ schedule: x_1_2_0 + x_2_2_0 + x_3_2_0 + x_4_2_0 = 1
+ schedule: x_1_0_1 + x_2_0_1 + x_3_0_1 + x_4_0_1 = 1
+ schedule: x_1_2_1 + x_2_2_1 + x_3_2_1 + x_4_2_1 = 1
+ new_0_0_1_0: y_0_0_1_0 = 0
+ old_0_0_2_0: y_0_0_2_0 = 1
+ old_0_2_1_0: y_0_2_1_0 = 1
+ rounds_1_0_0: - x_1_0_0 + R >= 0
+ rounds_1_1_0: - x_1_1_0 + R >= 0
+ rounds_1_2_0: - x_1_2_0 + R >= 0
+ new_1_0_1_0: - x_1_0_0 + y_1_0_1_0 = 0
+ old_1_0_2_0: x_1_0_0 + y_1_0_2_0 = 1
+ old_1_2_1_0: x_1_2_0 + y_1_2_1_0 = 1
+ forknode_1_0_0: - x_1_0_0 + fork_1_0_0 = 0
+ forknode_1_1_0: fork_1_1_0 = 0
+ forknode_1_2_0: fork_1_2_0 = 0
+ transientflow_1_0_1_0: - y_1_0_1_0 - fork_1_0_0 + f_1_0_1_0 <= 0
+ transientflow_0_0_1_0: - y_0_0_1_0 - fork_1_0_0 + f_1_0_1_0 <= 0
+ transientflow_1_0_2_0: - y_1_0_2_0 - fork_1_0_0 + f_1_0_2_0 <= 0
+ transientflow_0_0_2_0: - y_0_0_2_0 - fork_1_0_0 + f_1_0_2_0 <= 0
+ transientflow_1_2_1_0: - y_1_2_1_0 - fork_1_2_0 + f_1_2_1_0 <= 0
+ transientflow_0_2_1_0: - y_0_2_1_0 - fork_1_2_0 + f_1_2_1_0 <= 0
+ outflow1_1_0_0: - fork_1_0_0 + f_1_0_2_0 >= 0
+ outflow2_1_0_0: - fork_1_0_0 + f_1_0_1_0 >= 0
+ ordinarynode_1_0_0: join_1_0_0 = 0
+ transientcheck_1_0_0: - fork_1_0_0 + f_1_0_1_0 + f_1_0_2_0 = 1
+ inflow1_1_1_0: f_1_2_1_0 - join_1_1_0 >= 0
+ inflow2_1_1_0: f_1_0_1_0 - join_1_1_0 >= 0
+ transientcheck_1_1_0: - f_1_0_1_0 - f_1_2_1_0 + join_1_1_0 = -1
+ ordinarynode_1_2_0: join_1_2_0 = 0
+ transientcheck_1_2_0: - fork_1_2_0 - f_1_0_2_0 + f_1_2_1_0 + join_1_2_0
+   = 0
+ rounds_2_0_0: - 2 x_2_0_0 + R >= 0
+ rounds_2_1_0: - 2 x_2_1_0 + R >= 0
+ rounds_2_2_0: - 2 x_2_2_0 + R >= 0
+ new_2_0_1_0: - x_1_0_0 - x_2_0_0 + y_2_0_1_0 = 0
+ old_2_0_2_0: x_1_0_0 + x_2_0_0 + y_2_0_2_0 = 1
+ old_2_2_1_0: x_1_2_0 + x_2_2_0 + y_2_2_1_0 = 1
+ forknode_2_0_0: - x_2_0_0 + fork_2_0_0 = 0
+ forknode_2_1_0: fork_2_1_0 = 0
+ forknode_2_2_0: fork_2_2_0 = 0
+ transientflow_2_0_1_0: - y_2_0_1_0 - fork_2_0_0 + f_2_0_1_0 <= 0
+ transientflow_1_0_1_0: - y_1_0_1_0 - fork_2_0_0 + f_2_0_1_0 <= 0
+ transientflow_2_0_2_0: - y_2_0_2_0 - fork_2_0_0 + f_2_0_2_0 <= 0
+ transientflow_1_0_2_0: - y_1_0_2_0 - fork_2_0_0 + f_2_0_2_0 <= 0
+ transientflow_2_2_1_0: - y_2_2_1_0 - fork_2_2_0 + f_2_2_1_0 <= 0
+ transientflow_1_2_1_0: - y_1_2_1_0 - fork_2_2_0 + f_2_2_1_0 <= 0
+ outflow1_2_0_0: - fork_2_0_0 + f_2_0_2_0 >= 0
+ outflow2_2_0_0: - fork_2_0_0 + f_2_0_1_0 >= 0
+ ordinarynode_2_0_0: join_2_0_0 = 0
+ transientcheck_2_0_0: - fork_2_0_0 + f_2_0_1_0 + f_2_0_2_0 = 1
+ inflow1_2_1_0: f_2_2_1_0 - join_2_1_0 >= 0
+ inflow2_2_1_0: f_2_0_1_0 - join_2_1_0 >= 0
+ transientcheck_2_1_0: - f_2_0_1_0 - f_2_2_1_0 + join_2_1_0 = -1
+ ordinarynode_2_2_0: join_2_2_0 = 0
+ transientcheck_2_2_0: - fork_2_2_0 - f_2_0_2_0 + f_2_2_1_0 + join_2_2_0
+   = 0
+ rounds_3_0_0: - 3 x_3_0_0 + R >= 0
+ rounds_3_1_0: - 3 x_3_1_0 + R >= 0
+ rounds_3_2_0: - 3 x_3_2_0 + R >= 0
+ new_3_0_1_0: - x_1_0_0 - x_2_0_0 - x_3_0_0 + y_3_0_1_0 = 0
+ old_3_0_2_0: x_1_0_0 + x_2_0_0 + x_3_0_0 + y_3_0_2_0 = 1
+ old_3_2_1_0: x_1_2_0 + x_2_2_0 + x_3_2_0 + y_3_2_1_0 = 1
+ forknode_3_0_0: - x_3_0_0 + fork_3_0_0 = 0
+ forknode_3_1_0: fork_3_1_0 = 0
+ forknode_3_2_0: fork_3_2_0 = 0
+ transientflow_3_0_1_0: - y_3_0_1_0 - fork_3_0_0 + f_3_0_1_0 <= 0
+ transientflow_2_0_1_0: - y_2_0_1_0 - fork_3_0_0 + f_3_0_1_0 <= 0
+ transientflow_3_0_2_0: - y_3_0_2_0 - fork_3_0_0 + f_3_0_2_0 <= 0
+ transientflow_2_0_2_0: - y_2_0_2_0 - fork_3_0_0 + f_3_0_2_0 <= 0
+ transientflow_3_2_1_0: - y_3_2_1_0 - fork_3_2_0 + f_3_2_1_0 <= 0
+ transientflow_2_2_1_0: - y_2_2_1_0 - fork_3_2_0 + f_3_2_1_0 <= 0
+ outflow1_3_0_0: - fork_3_0_0 + f_3_0_2_0 >= 0
+ outflow2_3_0_0: - fork_3_0_0 + f_3_0_1_0 >= 0
+ ordinarynode_3_0_0: join_3_0_0 = 0
+ transientcheck_3_0_0: - fork_3_0_0 + f_3_0_1_0 + f_3_0_2_0 = 1
+ inflow1_3_1_0: f_3_2_1_0 - join_3_1_0 >= 0
+ inflow2_3_1_0: f_3_0_1_0 - join_3_1_0 >= 0
+ transientcheck_3_1_0: - f_3_0_1_0 - f_3_2_1_0 + join_3_1_0 = -1
+ ordinarynode_3_2_0: join_3_2_0 = 0
+ transientcheck_3_2_0: - fork_3_2_0 - f_3_0_2_0 + f_3_2_1_0 + join_3_2_0
+   = 0
+ rounds_4_0_0: - 4 x_4_0_0 + R >= 0
+ rounds_4_1_0: - 4 x_4_1_0 + R >= 0
+ rounds_4_2_0: - 4 x_4_2_0 + R >= 0
+ new_4_0_1_0: - x_1_0_0 - x_2_0_0 - x_3_0_0 - x_4_0_0 + y_4_0_1_0 = 0
+ old_4_0_2_0: x_1_0_0 + x_2_0_0 + x_3_0_0 + x_4_0_0 + y_4_0_2_0 = 1
+ old_4_2_1_0: x_1_2_0 + x_2_2_0 + x_3_2_0 + x_4_2_0 + y_4_2_1_0 = 1
+ forknode_4_0_0: - x_4_0_0 + fork_4_0_0 = 0
+ forknode_4_1_0: fork_4_1_0 = 0
+ forknode_4_2_0: fork_4_2_0 = 0
+ transientflow_4_0_1_0: - y_4_0_1_0 - fork_4_0_0 + f_4_0_1_0 <= 0
+ transientflow_3_0_1_0: - y_3_0_1_0 - fork_4_0_0 + f_4_0_1_0 <= 0
+ transientflow_4_0_2_0: - y_4_0_2_0 - fork_4_0_0 + f_4_0_2_0 <= 0
+ transientflow_3_0_2_0: - y_3_0_2_0 - fork_4_0_0 + f_4_0_2_0 <= 0
+ transientflow_4_2_1_0: - y_4_2_1_0 - fork_4_2_0 + f_4_2_1_0 <= 0
+ transientflow_3_2_1_0: - y_3_2_1_0 - fork_4_2_0 + f_4_2_1_0 <= 0
+ outflow1_4_0_0: - fork_4_0_0 + f_4_0_2_0 >= 0
+ outflow2_4_0_0: - fork_4_0_0 + f_4_0_1_0 >= 0
+ ordinarynode_4_0_0: join_4_0_0 = 0
+ transientcheck_4_0_0: - fork_4_0_0 + f_4_0_1_0 + f_4_0_2_0 = 1
+ inflow1_4_1_0: f_4_2_1_0 - join_4_1_0 >= 0
+ inflow2_4_1_0: f_4_0_1_0 - join_4_1_0 >= 0
+ transientcheck_4_1_0: - f_4_0_1_0 - f_4_2_1_0 + join_4_1_0 = -1
+ ordinarynode_4_2_0: join_4_2_0 = 0
+ transientcheck_4_2_0: - fork_4_2_0 - f_4_0_2_0 + f_4_2_1_0 + join_4_2_0
+   = 0
  old_0_0_1_1: y_0_0_1_1 = 1
  new_0_0_2_1: y_0_0_2_1 = 0
  new_0_2_1_1: y_0_2_1_1 = 0
@@ -13,24 +118,24 @@ Subject To
  old_1_0_1_1: x_1_0_1 + y_1_0_1_1 = 1
  new_1_0_2_1: - x_1_0_1 + y_1_0_2_1 = 0
  new_1_2_1_1: - x_1_2_1 + y_1_2_1_1 = 0
- transientflow_1_0_1_1: - 3 y_1_0_1_1 - 3 y_1_0_2_1 + f_1_0_1_1 <= 0
- transientflow_0_0_1_1: - 3 y_0_0_1_1 - 3 y_0_0_2_1 + f_1_0_1_1 <= 0
- transientflow_1_0_2_1: - 3 y_1_0_1_1 - 3 y_1_0_2_1 + f_1_0_2_1 <= 0
- transientflow_0_0_2_1: - 3 y_0_0_1_1 - 3 y_0_0_2_1 + f_1_0_2_1 <= 0
- transientflow_1_2_1_1: - 3 y_1_2_1_1 + f_1_2_1_1 <= 0
- transientflow_0_2_1_1: - 3 y_0_2_1_1 + f_1_2_1_1 <= 0
  forknode_1_0_1: - x_1_0_1 + fork_1_0_1 = 0
  forknode_1_1_1: fork_1_1_1 = 0
  forknode_1_2_1: fork_1_2_1 = 0
- outflow1_1_0_1: f_1_0_2_1 - fork_1_0_1 >= 0
- outflow2_1_0_1: f_1_0_1_1 - fork_1_0_1 >= 0
+ transientflow_1_0_1_1: - y_1_0_1_1 - fork_1_0_1 + f_1_0_1_1 <= 0
+ transientflow_0_0_1_1: - y_0_0_1_1 - fork_1_0_1 + f_1_0_1_1 <= 0
+ transientflow_1_0_2_1: - y_1_0_2_1 - fork_1_0_1 + f_1_0_2_1 <= 0
+ transientflow_0_0_2_1: - y_0_0_2_1 - fork_1_0_1 + f_1_0_2_1 <= 0
+ transientflow_1_2_1_1: - y_1_2_1_1 - fork_1_2_1 + f_1_2_1_1 <= 0
+ transientflow_0_2_1_1: - y_0_2_1_1 - fork_1_2_1 + f_1_2_1_1 <= 0
+ outflow1_1_0_1: - fork_1_0_1 + f_1_0_2_1 >= 0
+ outflow2_1_0_1: - fork_1_0_1 + f_1_0_1_1 >= 0
  ordinarynode_1_0_1: join_1_0_1 = 0
- transientcheck_1_0_1: f_1_0_1_1 + f_1_0_2_1 - fork_1_0_1 = 1
+ transientcheck_1_0_1: - fork_1_0_1 + f_1_0_1_1 + f_1_0_2_1 = 1
  inflow1_1_1_1: f_1_2_1_1 - join_1_1_1 >= 0
  inflow2_1_1_1: f_1_0_1_1 - join_1_1_1 >= 0
- transientcheck_1_1_1: - f_1_0_1_1 - f_1_2_1_1 = -1
+ transientcheck_1_1_1: - f_1_0_1_1 - f_1_2_1_1 + join_1_1_1 = -1
  ordinarynode_1_2_1: join_1_2_1 = 0
- transientcheck_1_2_1: - f_1_0_2_1 + f_1_2_1_1 - fork_1_2_1 + join_1_2_1
+ transientcheck_1_2_1: - fork_1_2_1 - f_1_0_2_1 + f_1_2_1_1 + join_1_2_1
    = 0
  rounds_2_0_1: - 2 x_2_0_1 + R >= 0
  rounds_2_1_1: - 2 x_2_1_1 + R >= 0
@@ -38,27 +143,116 @@ Subject To
  old_2_0_1_1: x_1_0_1 + x_2_0_1 + y_2_0_1_1 = 1
  new_2_0_2_1: - x_1_0_1 - x_2_0_1 + y_2_0_2_1 = 0
  new_2_2_1_1: - x_1_2_1 - x_2_2_1 + y_2_2_1_1 = 0
- transientflow_2_0_1_1: - 3 y_2_0_1_1 - 3 y_2_0_2_1 + f_2_0_1_1 <= 0
- transientflow_1_0_1_1: - 3 y_1_0_1_1 - 3 y_1_0_2_1 + f_2_0_1_1 <= 0
- transientflow_2_0_2_1: - 3 y_2_0_1_1 - 3 y_2_0_2_1 + f_2_0_2_1 <= 0
- transientflow_1_0_2_1: - 3 y_1_0_1_1 - 3 y_1_0_2_1 + f_2_0_2_1 <= 0
- transientflow_2_2_1_1: - 3 y_2_2_1_1 + f_2_2_1_1 <= 0
- transientflow_1_2_1_1: - 3 y_1_2_1_1 + f_2_2_1_1 <= 0
  forknode_2_0_1: - x_2_0_1 + fork_2_0_1 = 0
  forknode_2_1_1: fork_2_1_1 = 0
  forknode_2_2_1: fork_2_2_1 = 0
- outflow1_2_0_1: f_2_0_2_1 - fork_2_0_1 >= 0
- outflow2_2_0_1: f_2_0_1_1 - fork_2_0_1 >= 0
+ transientflow_2_0_1_1: - y_2_0_1_1 - fork_2_0_1 + f_2_0_1_1 <= 0
+ transientflow_1_0_1_1: - y_1_0_1_1 - fork_2_0_1 + f_2_0_1_1 <= 0
+ transientflow_2_0_2_1: - y_2_0_2_1 - fork_2_0_1 + f_2_0_2_1 <= 0
+ transientflow_1_0_2_1: - y_1_0_2_1 - fork_2_0_1 + f_2_0_2_1 <= 0
+ transientflow_2_2_1_1: - y_2_2_1_1 - fork_2_2_1 + f_2_2_1_1 <= 0
+ transientflow_1_2_1_1: - y_1_2_1_1 - fork_2_2_1 + f_2_2_1_1 <= 0
+ outflow1_2_0_1: - fork_2_0_1 + f_2_0_2_1 >= 0
+ outflow2_2_0_1: - fork_2_0_1 + f_2_0_1_1 >= 0
  ordinarynode_2_0_1: join_2_0_1 = 0
- transientcheck_2_0_1: f_2_0_1_1 + f_2_0_2_1 - fork_2_0_1 = 1
+ transientcheck_2_0_1: - fork_2_0_1 + f_2_0_1_1 + f_2_0_2_1 = 1
  inflow1_2_1_1: f_2_2_1_1 - join_2_1_1 >= 0
  inflow2_2_1_1: f_2_0_1_1 - join_2_1_1 >= 0
- transientcheck_2_1_1: - f_2_0_1_1 - f_2_2_1_1 = -1
+ transientcheck_2_1_1: - f_2_0_1_1 - f_2_2_1_1 + join_2_1_1 = -1
  ordinarynode_2_2_1: join_2_2_1 = 0
- transientcheck_2_2_1: - f_2_0_2_1 + f_2_2_1_1 - fork_2_2_1 + join_2_2_1
+ transientcheck_2_2_1: - fork_2_2_1 - f_2_0_2_1 + f_2_2_1_1 + join_2_2_1
    = 0
+ rounds_3_0_1: - 3 x_3_0_1 + R >= 0
+ rounds_3_1_1: - 3 x_3_1_1 + R >= 0
+ rounds_3_2_1: - 3 x_3_2_1 + R >= 0
+ old_3_0_1_1: x_1_0_1 + x_2_0_1 + x_3_0_1 + y_3_0_1_1 = 1
+ new_3_0_2_1: - x_1_0_1 - x_2_0_1 - x_3_0_1 + y_3_0_2_1 = 0
+ new_3_2_1_1: - x_1_2_1 - x_2_2_1 - x_3_2_1 + y_3_2_1_1 = 0
+ forknode_3_0_1: - x_3_0_1 + fork_3_0_1 = 0
+ forknode_3_1_1: fork_3_1_1 = 0
+ forknode_3_2_1: fork_3_2_1 = 0
+ transientflow_3_0_1_1: - y_3_0_1_1 - fork_3_0_1 + f_3_0_1_1 <= 0
+ transientflow_2_0_1_1: - y_2_0_1_1 - fork_3_0_1 + f_3_0_1_1 <= 0
+ transientflow_3_0_2_1: - y_3_0_2_1 - fork_3_0_1 + f_3_0_2_1 <= 0
+ transientflow_2_0_2_1: - y_2_0_2_1 - fork_3_0_1 + f_3_0_2_1 <= 0
+ transientflow_3_2_1_1: - y_3_2_1_1 - fork_3_2_1 + f_3_2_1_1 <= 0
+ transientflow_2_2_1_1: - y_2_2_1_1 - fork_3_2_1 + f_3_2_1_1 <= 0
+ outflow1_3_0_1: - fork_3_0_1 + f_3_0_2_1 >= 0
+ outflow2_3_0_1: - fork_3_0_1 + f_3_0_1_1 >= 0
+ ordinarynode_3_0_1: join_3_0_1 = 0
+ transientcheck_3_0_1: - fork_3_0_1 + f_3_0_1_1 + f_3_0_2_1 = 1
+ inflow1_3_1_1: f_3_2_1_1 - join_3_1_1 >= 0
+ inflow2_3_1_1: f_3_0_1_1 - join_3_1_1 >= 0
+ transientcheck_3_1_1: - f_3_0_1_1 - f_3_2_1_1 + join_3_1_1 = -1
+ ordinarynode_3_2_1: join_3_2_1 = 0
+ transientcheck_3_2_1: - fork_3_2_1 - f_3_0_2_1 + f_3_2_1_1 + join_3_2_1
+   = 0
+ rounds_4_0_1: - 4 x_4_0_1 + R >= 0
+ rounds_4_1_1: - 4 x_4_1_1 + R >= 0
+ rounds_4_2_1: - 4 x_4_2_1 + R >= 0
+ old_4_0_1_1: x_1_0_1 + x_2_0_1 + x_3_0_1 + x_4_0_1 + y_4_0_1_1 = 1
+ new_4_0_2_1: - x_1_0_1 - x_2_0_1 - x_3_0_1 - x_4_0_1 + y_4_0_2_1 = 0
+ new_4_2_1_1: - x_1_2_1 - x_2_2_1 - x_3_2_1 - x_4_2_1 + y_4_2_1_1 = 0
+ forknode_4_0_1: - x_4_0_1 + fork_4_0_1 = 0
+ forknode_4_1_1: fork_4_1_1 = 0
+ forknode_4_2_1: fork_4_2_1 = 0
+ transientflow_4_0_1_1: - y_4_0_1_1 - fork_4_0_1 + f_4_0_1_1 <= 0
+ transientflow_3_0_1_1: - y_3_0_1_1 - fork_4_0_1 + f_4_0_1_1 <= 0
+ transientflow_4_0_2_1: - y_4_0_2_1 - fork_4_0_1 + f_4_0_2_1 <= 0
+ transientflow_3_0_2_1: - y_3_0_2_1 - fork_4_0_1 + f_4_0_2_1 <= 0
+ transientflow_4_2_1_1: - y_4_2_1_1 - fork_4_2_1 + f_4_2_1_1 <= 0
+ transientflow_3_2_1_1: - y_3_2_1_1 - fork_4_2_1 + f_4_2_1_1 <= 0
+ outflow1_4_0_1: - fork_4_0_1 + f_4_0_2_1 >= 0
+ outflow2_4_0_1: - fork_4_0_1 + f_4_0_1_1 >= 0
+ ordinarynode_4_0_1: join_4_0_1 = 0
+ transientcheck_4_0_1: - fork_4_0_1 + f_4_0_1_1 + f_4_0_2_1 = 1
+ inflow1_4_1_1: f_4_2_1_1 - join_4_1_1 >= 0
+ inflow2_4_1_1: f_4_0_1_1 - join_4_1_1 >= 0
+ transientcheck_4_1_1: - f_4_0_1_1 - f_4_2_1_1 + join_4_1_1 = -1
+ ordinarynode_4_2_1: join_4_2_1 = 0
+ transientcheck_4_2_1: - fork_4_2_1 - f_4_0_2_1 + f_4_2_1_1 + join_4_2_1
+   = 0
+ capacity_1_0_1: f_1_0_1_0 + f_1_0_1_1 <= 1
+ capacity_2_0_1: f_2_0_1_0 + f_2_0_1_1 <= 1
+ capacity_3_0_1: f_3_0_1_0 + f_3_0_1_1 <= 1
+ capacity_4_0_1: f_4_0_1_0 + f_4_0_1_1 <= 1
+ capacity_1_0_2: f_1_0_2_0 + f_1_0_2_1 <= 2
+ capacity_2_0_2: f_2_0_2_0 + f_2_0_2_1 <= 2
+ capacity_3_0_2: f_3_0_2_0 + f_3_0_2_1 <= 2
+ capacity_4_0_2: f_4_0_2_0 + f_4_0_2_1 <= 2
+ capacity_1_2_1: f_1_2_1_0 + f_1_2_1_1 <= 1
+ capacity_2_2_1: f_2_2_1_0 + f_2_2_1_1 <= 1
+ capacity_3_2_1: f_3_2_1_0 + f_3_2_1_1 <= 1
+ capacity_4_2_1: f_4_2_1_0 + f_4_2_1_1 <= 1
 Bounds
- R <= 2
+ R <= 4
+ y_0_0_1_0 <= 1
+ y_0_0_2_0 <= 1
+ y_0_2_1_0 <= 1
+ y_1_0_1_0 <= 1
+ y_1_0_2_0 <= 1
+ y_1_2_1_0 <= 1
+ f_1_0_1_0 <= 3
+ f_1_0_2_0 <= 3
+ f_1_2_1_0 <= 3
+ y_2_0_1_0 <= 1
+ y_2_0_2_0 <= 1
+ y_2_2_1_0 <= 1
+ f_2_0_1_0 <= 3
+ f_2_0_2_0 <= 3
+ f_2_2_1_0 <= 3
+ y_3_0_1_0 <= 1
+ y_3_0_2_0 <= 1
+ y_3_2_1_0 <= 1
+ f_3_0_1_0 <= 3
+ f_3_0_2_0 <= 3
+ f_3_2_1_0 <= 3
+ y_4_0_1_0 <= 1
+ y_4_0_2_0 <= 1
+ y_4_2_1_0 <= 1
+ f_4_0_1_0 <= 3
+ f_4_0_2_0 <= 3
+ f_4_2_1_0 <= 3
  y_0_0_1_1 <= 1
  y_0_0_2_1 <= 1
  y_0_2_1_1 <= 1
@@ -74,10 +268,30 @@ Bounds
  f_2_0_1_1 <= 3
  f_2_0_2_1 <= 3
  f_2_2_1_1 <= 3
+ y_3_0_1_1 <= 1
+ y_3_0_2_1 <= 1
+ y_3_2_1_1 <= 1
+ f_3_0_1_1 <= 3
+ f_3_0_2_1 <= 3
+ f_3_2_1_1 <= 3
+ y_4_0_1_1 <= 1
+ y_4_0_2_1 <= 1
+ y_4_2_1_1 <= 1
+ f_4_0_1_1 <= 3
+ f_4_0_2_1 <= 3
+ f_4_2_1_1 <= 3
 Binaries
- x_1_0_1 x_2_0_1 x_1_1_1 x_2_1_1 x_1_2_1 x_2_2_1 fork_1_0_1 fork_1_1_1
+ x_1_0_0 x_2_0_0 x_3_0_0 x_4_0_0 x_1_1_0 x_2_1_0 x_3_1_0 x_4_1_0 x_1_2_0
+ x_2_2_0 x_3_2_0 x_4_2_0 x_1_0_1 x_2_0_1 x_3_0_1 x_4_0_1 x_1_1_1 x_2_1_1
+ x_3_1_1 x_4_1_1 x_1_2_1 x_2_2_1 x_3_2_1 x_4_2_1 fork_1_0_0 fork_1_1_0
+ fork_1_2_0 join_1_0_0 join_1_1_0 join_1_2_0 fork_2_0_0 fork_2_1_0
+ fork_2_2_0 join_2_0_0 join_2_1_0 join_2_2_0 fork_3_0_0 fork_3_1_0
+ fork_3_2_0 join_3_0_0 join_3_1_0 join_3_2_0 fork_4_0_0 fork_4_1_0
+ fork_4_2_0 join_4_0_0 join_4_1_0 join_4_2_0 fork_1_0_1 fork_1_1_1
  fork_1_2_1 join_1_0_1 join_1_1_1 join_1_2_1 fork_2_0_1 fork_2_1_1
- fork_2_2_1 join_2_0_1 join_2_1_1 join_2_2_1
+ fork_2_2_1 join_2_0_1 join_2_1_1 join_2_2_1 fork_3_0_1 fork_3_1_1
+ fork_3_2_1 join_3_0_1 join_3_1_1 join_3_2_1 fork_4_0_1 fork_4_1_1
+ fork_4_2_1 join_4_0_1 join_4_1_1 join_4_2_1
 Generals
  R
 End
