@@ -189,7 +189,7 @@ public:
 				foreach_edge(flowpair,
 						[&](int u, int v, Edge_label lbl) {
 
-							const GRBVar& f_r_uvi = lp.addVar(0, N, 0, GRB_CONTINUOUS, ruvi("f", r, u, v, i));
+							const GRBVar& f_r_uvi = lp.addVar(0, 1, 0, GRB_CONTINUOUS, ruvi("f", r, u, v, i));
 							GRBLinExpr sum1_uz = 0, sum2_uz = 0;
 //							foreach_outedge(flowpair, u, [&](int u_, int z, Edge_label lbl) {
 //										if (u != u_) {
@@ -205,6 +205,10 @@ public:
 							const GRBVar& fork_r_ui = lp.getVarByName(rvi("fork", r, u, i));
 							lp.addConstr(f_r_uvi - y_r_uvi - fork_r_ui<= 0, ruvi("transientflow", r, u, v, i));
 							lp.addConstr(f_r_uvi - y_rminus1_uvi - fork_r_ui<= 0, ruvi("transientflow", r - 1, u, v, i));
+
+							const GRBVar& alpha_r_uvi = lp.addVar(0, 1, 0, GRB_BINARY, ruvi("alpha", r, u, v, i));
+							lp.addConstr(alpha_r_uvi - 1 + y_r_uvi >= 0, ruvi("transientdemand", r, u, v, i));
+							lp.addConstr(alpha_r_uvi - fork_r_ui >= 0, ruvi("transientdemand", r, u, v, i));
 						});
 
 				lp.update();
@@ -272,13 +276,15 @@ public:
 								GRBLinExpr demand_r_uv=0;
 								foreach_flowpair([&](FlowPair flowpair, int i) {
 											if(edgeExists(u,v,flowpair)) {
-												mylog<<"\nget "<<ruvi("f",r,u,v,i);
-												const GRBVar &f_r_uvi =lp.getVarByName(ruvi("f",r,u,v,i));
+												const GRBVar &f_r_uvi = lp.getVarByName(ruvi("f",r,u,v,i));
+												const GRBVar &alpha_r_uvi = lp.getVarByName(ruvi("alpha",r,u,v,i));
+
 												demand_r_uv += f_r_uvi;
-											}
-										});
-								lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
-							});
+												demand_r_uv -= alpha_r_uvi;
+									}
+								});
+						lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
+					});
 				});
 	}
 };

@@ -34,7 +34,7 @@ int main(int, char*[]) {
 	vector<myTypes::MyGraph*> blocks;
 
 	//generate/load graph
-	paperExample(g);
+	//paperExample(g);
 	//singleEdge(g);
 	//minimalExample(g);
 
