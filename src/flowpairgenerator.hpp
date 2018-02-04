@@ -6,7 +6,7 @@
 #include <ctime>
 #include <boost/graph/breadth_first_search.hpp>
 
-#include "helpers.hpp"
+#include "flowutil.hpp"
 #include "ksp.hpp"
 
 using namespace boost;
@@ -14,18 +14,16 @@ using namespace std;
 
 // set edge labels in the target graph for the path specified by the parent map
 template<class Graph>
-void addSP(Graph &g, int flowID, Usage_E usage, const ParentMap &parent,
+void addSP(Graph &g, int flowID, Usage_E usage, const Path<Graph> &path,
 		Vertex<Graph> s, Vertex<Graph> t) {
 
-	Vertex<Graph> v = t;
-	do {
-		Edge<Graph> e = edge(parent[v], v, g).first;
+	for (int i = path.size() - 1; i > 1; --i) {
+		Edge<Graph> e = edge(path[i - 1], path[i], g).first;
 		mylog << " ;setting  " << getFlowName(g, e, flowID) << " usage="
 				<< usage << " for edge " << edgeToStr(e, g);
 		g[e].flows[flowID].usage =
 				(g[e].flows[flowID].usage == flow_none) ? usage : flow_both;
-		v = parent[v];
-	} while (v != s);
+	}
 }
 
 template<class Graph>
@@ -108,7 +106,6 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	mylog << "\nold flow for pair1 uses SP:" << perm[0];
 	found = k_SP(g, s, t, perm[0], f1old);
 	if (found) {
-		print_parent_map(f1old, s, t);
 		addSP(g, BLUE, flow_old, f1old, s, t);
 
 	} else if (f2new[t] > 0 && f2new[t] != t && f2new[t] < n) { // can we steal from f2new?
@@ -122,7 +119,6 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	mylog << "\nnew flow for pair1 uses SP:" << perm[1];
 	found = k_SP(g, s, t, perm[1], f1new);
 	if (found) {
-		print_parent_map(f1new, s, t);
 		addSP(g, BLUE, flow_new, f1new, s, t);
 
 	} else if (f2old[t] > 0 && f2old[t] != t && f2new[t] < n) {
@@ -136,7 +132,6 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	mylog << "\nold flow for pair2 uses SP:" << perm[2];
 	found = k_SP(g, s, t, perm[2], f2old);
 	if (found) {
-		print_parent_map(f2old, s, t);
 		addSP(g, RED, flow_old, f2old, s, t);
 
 	} else if (f1new[t] > 0 && f1new[t] != t && f2new[t] < n) {
@@ -151,7 +146,6 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	found = k_SP(g, s, t, perm[3], f2new);
 	if (found) {
 		mylog << "nextSPExist\n";
-		print_parent_map(f2new, s, t);
 		addSP(g, RED, flow_new, f2new, s, t);
 
 	} else if (f1old[t] > 0 && f1old[t] != t && f2new[t] < n) {
@@ -166,89 +160,184 @@ bool generateFlowPairs_rand(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 }
 
 void setVertexNames(myTypes::MyGraph &g) {
-			// set vertex names
-			auto indexMap = get(vertex_index, g);
-			auto nameMap = get(vertex_name, g);
-			typename graph_traits<myTypes::MyGraph>::vertex_iterator vi, vend;
-			for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
-				put(nameMap, *vi, to_string(indexMap[*vi]));
+	// set vertex names
+	auto indexMap = get(vertex_index, g);
+	auto nameMap = get(vertex_name, g);
+	typename graph_traits<myTypes::MyGraph>::vertex_iterator vi, vend;
+	for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
+		put(nameMap, *vi, to_string(indexMap[*vi]));
+	}
+}
+
+void postGenerate(myTypes::MyGraph &g) {
+	setVertexNames(g);
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+		g[*e_it].flows[BLUE].usage = flow_none;
+		g[*e_it].flows[RED].usage = flow_none;
+	}
+}
+
+void setCapacity(myTypes::MyGraph &g) {
+	/* initialize random seed: */
+	srand(time(NULL));
+
+	graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
+	for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
+		if (g[*ei].flows[BLUE].usage == flow_none
+				&& g[*ei].flows[RED].usage == flow_none) {
+			g[*ei].capacity = -1;
+
+		} else if (g[*ei].flows[BLUE].usage
+				== g[*ei].flows[RED].usage) { // i.e. both flows chose either flow_old or flow_new on this edge
+			g[*ei].capacity = 2;
+
+		} else {
+			g[*ei].capacity = rand() % 2 + 1;
+		}
+	}
+	// remove non-flow edges
+	remove_edge_if(
+			[&g](Edge<myTypes::MyGraph> e) {
+				return g[e].flows[BLUE].usage == flow_none&& g[e].flows[RED].usage == flow_none;
+			}, g);
+}
+
+class randomNetwork {
+	mt19937 rng;
+	public:
+	randomNetwork() {
+		rng.seed(uint32_t(time(0)));
+	}
+	bool generate(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
+		generate_random_graph(g, n_v, n_e, rng, false, false);
+
+		postGenerate(g);
+
+		Vertex<myTypes::MyGraph> s = 0, t = 1;
+		int bestS = MINUSINF, bestT=INF;
+		typename graph_traits<myTypes::MyGraph>::vertex_iterator v,
+				vend;
+		/*
+		 for (tie(v, vend) = vertices(g); v != vend; ++v) {
+		 int dout = out_degree(*v, g), din = in_degree(*v, g);
+		 //int m = dout - din;
+		 if (bestS < dout) {
+		 //			if (out_degree(*v, g) > 1) {
+		 s = *v;
+		 bestS = dout;
+		 } else if (bestT < din) {
+		 //			} else if (in_degree(*v, g) > 1) {
+		 t = *v;
+		 bestT = din;
+		 }
+		 }
+		 */
+
+		bool success = generateFlowPairs_rand(g, s, t);
+		if (!success) {
+			mylog << "\npairs could not be generated";
+			return false;
+		}
+		setCapacity(g);
+		return true;
+	}
+};
+
+template<class G = myTypes::MyGraph>
+class OverlapFlows {
+	G &g;
+	const int s;
+	const int t;
+
+	Path<G> next_path(Path<G>& basePath) {
+		printf("basePath.size()=%d\n", basePath.size());
+		assert(basePath.size() > 0 && basePath[0] == s && basePath.back() == t);
+		vector<Vertex<G>> path;
+		int s_j = s, j = 0;
+		for (int i = 1; i < basePath.size(); ++i) {
+			PRINTF("detour for [%d,%d]\n", s_j, basePath[i]);
+			const vector<Vertex<G>>& tmp =
+					k_SP(g, s_j, basePath[i], 1);
+			if (tmp.size() == 0) {
+				PRINTF("detour not found\n");
+				continue;
 			}
+			assert(tmp.size() > 2);
+//			path.insert(path.end(), basePath.begin() + j, basePath.begin() + i - 1);
+			path.insert(path.end(), tmp.begin(), tmp.end() - 1);	// append the detour until one before the end
+			s_j = basePath[i];
+			j = i;
+		}
+		if (path.size() < 1) {
+			PRINTF("no next path possible\n");
+			return {};
 		}
 
-		void postGenerate(myTypes::MyGraph &g) {
-			setVertexNames(g);
-			graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
-			for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
-				put(edge_weight, g, *e_it, 1);
-				g[*e_it].flows[BLUE].usage = flow_none;
-				g[*e_it].flows[RED].usage = flow_none;
-			}
+		path.insert(path.end(), basePath.begin() + j, basePath.end()); // append the remaining
+		printPath(path);
+
+		assert(path[0] == s && path.back() == t);
+		for (size_t i = 1; i < path.size(); ++i) {
+			printf("path.size()=%d, i=%d ,i < path.size()=%d\n", (int)path.size(), i, i < path.size());
+//			PRINTF("path[i - 1], path[i]=%d,%d i=%d\n",path[i - 1] ,path[i],i);
+			assert(path[i - 1] != path[i]);
 		}
 
-		void setCapacity(myTypes::MyGraph &g) {
-			/* initialize random seed: */
-			srand(time(NULL));
+	}
 
-			graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
-			for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-				if (g[*ei].flows[BLUE].usage == flow_none
-						&& g[*ei].flows[RED].usage == flow_none) {
-					g[*ei].capacity = -1;
+public:
+	OverlapFlows(G& g, const int s = 0, const int t = 1) :
+			g(g), s(s), t(t) {
+	}
+	bool allocate();
+};
 
-				} else if (g[*ei].flows[BLUE].usage
-						== g[*ei].flows[RED].usage) { // i.e. both flows chose either flow_old or flow_new on this edge
-					g[*ei].capacity = 2;
+template<class G>
+bool OverlapFlows<G>::allocate() {
+	mylog << "pair1.old flow:\n";
+	Path<G> f1old = k_SP(g, s, t, 0);
+	if (f1old.size() > 1) {
+		PRINTF("adding path1: ");
+		printPath<>(f1old);
+		addSP(g, BLUE, flow_old, f1old, s, t);
+	} else {
+		PRINTF("\ns=%d,t=%d is disconnected", s, t);
+		return false;
+	}
 
-				} else {
-					g[*ei].capacity = rand() % 2 + 1;
-				}
-			}
-			// remove non-flow edges
-			remove_edge_if(
-					[&g](Edge<myTypes::MyGraph> e) {
-						return g[e].flows[BLUE].usage == flow_none&& g[e].flows[RED].usage == flow_none;
-					}, g);
-		}
+	mylog << "\npair1.new flow:\n";
+	Path<G> f1new = next_path(f1old);
+	if (f1new.size() > 1) {
+		PRINTF("adding path2: ");
+		printPath<>(f1new);
+		addSP(g, BLUE, flow_new, f1new, s, t);
+	} else {
+		mylog << "\ns,t is disconnected, no path2";
+		return false;
+	}
 
-		class randomNetwork {
-			mt19937 rng;
-		public:
-			randomNetwork() {
-				rng.seed(uint32_t(time(0)));
-			}
-			bool generate(myTypes::MyGraph &g, size_t n_v, size_t n_e) {
-				generate_random_graph(g, n_v, n_e, rng, false, false);
+	mylog << "\npair2.old flow:\n";
+	Path<G> f2old = next_path(f1new);
+	if (f2old.size() > 1) {
+		addSP(g, BLUE, flow_old, f2old, s, t);
 
-				postGenerate(g);
+	} else {
+		mylog << "\ns,t is disconnected(2)";
+		return false;
+	}
 
-				Vertex<myTypes::MyGraph> s = 0, t = 1;
-				int bestS = MINUSINF, bestT=INF;
-				typename graph_traits<myTypes::MyGraph>::vertex_iterator v,
-						vend;
-				/*
-				 for (tie(v, vend) = vertices(g); v != vend; ++v) {
-				 int dout = out_degree(*v, g), din = in_degree(*v, g);
-				 //int m = dout - din;
-				 if (bestS < dout) {
-				 //			if (out_degree(*v, g) > 1) {
-				 s = *v;
-				 bestS = dout;
-				 } else if (bestT < din) {
-				 //			} else if (in_degree(*v, g) > 1) {
-				 t = *v;
-				 bestT = din;
-				 }
-				 }
-				 */
-
-				bool success = generateFlowPairs_rand(g, s, t);
-				if (!success) {
-					mylog << "\npairs could not be generated";
-					return false;
-				}
-				setCapacity(g);
-				return true;
-			}
-		};
+	mylog << "\npair2.new flow:\n";
+	Path<G> f2new = next_path(f2old);
+	if (f2new.size() > 1) {
+		addSP(g, BLUE, flow_new, f2new, s, t);
+	} else {
+		mylog << "\ns,t is disconnected(3)";
+		return false;
+	}
+	// auto set capacities
+	setMinimalCapacities(g);
+}
 
 #endif /* FLOWPAIRGENERATOR_HPP_ */

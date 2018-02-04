@@ -20,21 +20,21 @@ size_t shortestPath(const Graph &g, Vertex<Graph> s, Vertex<Graph> t,
 		vector<Vertex<Graph>> &parentMap) {
 	vector<int> distMap(num_vertices(g));
 	Vertex<Graph> s_ = vertex(s, g);
+	// http://www.boost.org/doc/libs/1_65_1/libs/graph/doc/dijkstra_shortest_paths.html
 	dijkstra_shortest_paths(g, s_,
 			predecessor_map(
 					make_iterator_property_map(parentMap.begin(),
 							get(vertex_index, g))).distance_map(
 					make_iterator_property_map(distMap.begin(),
 							get(vertex_index, g))));
-//	mylog << "\ndistance from " << s << " to " << t << " is " << distMap[t]
-//			<< " in the graph:\n";
-//	print_graph(g);
+
 	return distMap[t];
 }
 
 template<class Graph>
 size_t shortestPath(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
 	vector<Vertex<Graph>> p(num_vertices(g));
+
 	return shortestPath(g, s, t, p);
 }
 
@@ -44,7 +44,7 @@ size_t shortestPath(Graph &g, Vertex<Graph> s, Vertex<Graph> t) {
  * try all remove combinations
  */
 template<class Graph>
-size_t bestNextEdges(Graph &g, int d, Vertex<Graph> s, Vertex<Graph> t,
+size_t bestNextEdges(Graph &g, const int d, const Vertex<Graph> s, const Vertex<Graph> t,
 		vector<Edge<Graph>> &result) {
 
 	vector<Edge<Graph>> bestCandidates; // best edge selection from recursive calls
@@ -52,23 +52,20 @@ size_t bestNextEdges(Graph &g, int d, Vertex<Graph> s, Vertex<Graph> t,
 	vector<Vertex<Graph>> parent(num_vertices(g));
 	size_t bestSP = INF;
 	size_t len = shortestPath(g, s, t, parent);
-
-	print_parent_map(parent, s, t);
-
+//	printPath(getPath(parent, s, t));
 	if (len == INF) {
 		return len;
 	}
 
 	Edge<Graph> bestEdge; //  best edge in this call
 
-	if (d < 0) {
+	if (d < 1) {
 //		mylog << " \nbuttom level reached, bestSP=" << len;
 		return len;
 
 	} else { // try all edge deletes
 		for (Vertex<Graph> v = t; v != s; v = parent[v]) { // for each path edge from t to s
-			auto pair = edge(parent[v], v, g);
-			auto e = pair.first;
+			auto e = edge(parent[v], v, g).first;
 			auto ew = get(edge_weight, g, e);
 //			mylog << "\nhide edge " << edgeToStr(parent[v], v, g);
 			put(edge_weight, g, e, INF); // hide the edge
@@ -100,7 +97,7 @@ size_t bestNextEdges(Graph &g, int d, Vertex<Graph> s, Vertex<Graph> t,
 }
 
 template<class Graph>
-bool k_SP(Graph &g, Vertex<Graph> s, Vertex<Graph> t, int k,
+bool k_SP(Graph &g, const Vertex<Graph> s, const Vertex<Graph> t, const int k,
 		ParentMap &parent) {
 
 	vector<Edge<Graph>> excludeList;
@@ -114,13 +111,12 @@ bool k_SP(Graph &g, Vertex<Graph> s, Vertex<Graph> t, int k,
 		}
 	}
 	size_t len = shortestPath(g, s, t, parent);
-	print_parent_map(parent, s, t);
-	mylog << "shortestPath=" << len;
-	mylog << " excludeList:" << excludeList.size();
+//	mylog << "shortestPath=" << len;
+//	mylog << " excludeList:" << excludeList.size();
 	for (auto e : excludeList) {
 		put(edge_weight, g, e, 1); // unhide the excluded edges
 	}
-	return len < INF&& parent[t]!=t;
+	return len < INF && parent[t] != t;
 }
 
 #endif /* KSP_HPP_ */

@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "testcases.hpp"
-//#include "Saeed_alg.hpp"
+#include "Saeed_alg.hpp"
 #include "gurobi_MIP.hpp"
 
 using namespace std;
@@ -25,73 +25,97 @@ void handler(int sig) {
 	exit(1);
 }
 
+void two_flows_algorithm_sim() {
+	// the network graph
+	myTypes::MyGraph g(0);
+
+	randomNetwork randnet;
+	int rounds = -1, nofBlocks = -1;
+	double count = 0, acceptance = 0;
+	bool feasible;
+	srand(time(NULL));
+
+	do {
+		++count;
+		g = myTypes::MyGraph(0);
+
+//		exampleNetwork(g);
+//		example_cyclic(g);
+//		example3(g);
+//		longDependency(g);
+		StefanGraph sg(g, 4);
+//		setVertexNames(g);
+
+// random graph
+//		int nof_vert = rand() % 20 + 6;
+//		int nof_edges = nof_vert + rand() % (1 * nof_vert);
+//		if (!randnet.generate(g, nof_vert, nof_edges)) {
+//			continue;
+//		}
+
+		if (trivial(g)) {
+			continue;
+		}
+
+		auto [cyclic, diameter_, nofBlocks_] = two_flows_update(g);
+//		 feasible = !cyclic;
+//		 rounds = diameter_;
+		nofBlocks = nofBlocks_;
+
+		tie(feasible, rounds) = runILP(g, 0, 1);
+
+		if (feasible == cyclic) {
+			printf("trouble!!\n");
+			print_network(g);
+			return;
+		}
+
+		mylog << "\nfeasible? " << feasible << " rounds=" << rounds
+				<< "\n";
+		if (feasible) {
+			++acceptance;
+		}
+
+		if ((size_t) count % 1000 == 0)
+			printf("%f\n", acceptance / count);
+
+	} while ((rounds < 5 || !feasible));
+
+	cout << "\nnofBlocks=" << nofBlocks << " diameter=" << rounds << " isDAG="
+			<< feasible;
+	print_network_forced(g);
+	save_dot_file(
+			"rounds" + to_string(rounds) + "DAG" + to_string(feasible)
+					+ ".dot", g);
+}
+
 int main(int, char*[]) {
 	signal(SIGSEGV, handler); // install our handler
-
-	//two_flows_algorithm();
+	srand(time(NULL));
 
 	myTypes::MyGraph g(0);
-	vector<myTypes::MyGraph*> blocks;
 
 	//generate/load graph
 	//paperExample(g);
 	//singleEdge(g);
 	//minimalExample(g);
-
-	// extract pairs
-	FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED, g);
-	FlowVertexFilter<myTypes::MyGraph> vertexFilter1(BLUE, g), vertexFilter2(
-			RED, g);
-
-	FlowPair p_blue(g, edgeFilter1, vertexFilter1);
-	FlowPair p_red(g, edgeFilter2, vertexFilter2);
-	vector<FlowPair> flowpairs = { p_blue, p_red };
-	int fid[] = { BLUE, RED };
+	example4(g);
+	//StefanGraph(g, 10);
 
 	print_network(g);
-	cout << "\npair1:\n";
-	print_graph(flowpairs[0]);
-	cout << "\npair2:\n";
-	print_graph(flowpairs[1]);
 
-	try {
-		GRBEnv env = GRBEnv();
-		GRBModel model = GRBModel(env);
-		model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
+//	runILP(g, 0, 1);
+//	two_flows_algorithm_sim();
+	OverlapFlows<> alg(g);
+	alg.allocate();
 
-		int n = num_vertices(g);
-		FlowUpdateLP myLP(flowpairs, fid, n, example.S, example.T);
-		myLP.add_constraints(model);
-		model.optimize();
+	print_network(g);
+	/*
+	 cout << "\npair1:\n";
+	 print_graph (flowpairs[0]);
+	 cout << "\npair2:\n";
+	 print_graph(flowpairs[1]);
+	 */
 
-		int numvars = model.get(GRB_IntAttr_NumVars);
-		cout << "\nnumvars=" << numvars;
-		auto vars = model.getVars();
-
-		// report
-		int optimstatus = model.get(GRB_IntAttr_Status);
-		if (optimstatus == GRB_OPTIMAL) {
-			for (int j = 0; j < numvars; j++) {
-				GRBVar v = vars[j];
-				if (v.get(GRB_DoubleAttr_X) != 0.0) {
-					cout << endl << v.get(GRB_StringAttr_VarName) << " "
-							<< v.get(GRB_DoubleAttr_X) << endl;
-				}
-			}
-			double objval = model.get(GRB_DoubleAttr_ObjVal);
-			cout << "\nOptimal objective: " << objval << endl;
-		} else if (optimstatus == GRB_INFEASIBLE) {
-			cout << "\nModel is infeasible" << endl;
-			model.computeIIS();
-			model.write("IISmodel.lp");
-		}
-		model.write("debug.lp");
-
-	} catch (GRBException e) {
-		cout << "\nError code = " << e.getErrorCode() << endl;
-		cout << e.getMessage() << endl;
-	} catch (...) {
-		cout << "\nException during optimization" << endl;
-	}
 	return 0;
 }

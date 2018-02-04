@@ -9,15 +9,17 @@ using namespace std;
 
 class FlowUpdateLP {
 private:
-	vector<FlowPair>& flowpairs;
-	int *fidmap;
+	const vector<FlowPair>& flowpairs;
+	const int *fidmap;
 	const int S, T;
-	const int rounds, pairsnum, N;
+	const int rounds, nofPairs;
 
 	template<class Graph>
 	void foreach_v(Graph& g, std::function<void(int)> f) {
+		assert(num_vertices(g) > 0);
 		typename graph_traits<Graph>::vertex_iterator vi, vend;
 		for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
+//			printf("foreach_v=%d\n", *vi);
 			f(*vi);
 		}
 	}
@@ -29,7 +31,7 @@ private:
 	}
 
 	void foreach_i_v(std::function<void(int, int)> f) {
-		for (int i = 0; i < pairsnum; ++i) {
+		for (int i = 0; i < nofPairs; ++i) {
 			foreach_v(flowpairs[i], [&](int v) {
 				f(fidmap[i], v);
 			});
@@ -37,7 +39,8 @@ private:
 	}
 
 	void foreach_flowpair(std::function<void(const FlowPair&, int)> f) {
-		for (int i = 0; i < pairsnum; ++i) {
+		for (int i = 0; i < nofPairs; ++i) {
+//			printf("foreach_flowpair: %d\n", num_vertices(flowpairs[i]));
 			f(flowpairs[i], fidmap[i]);
 		}
 	}
@@ -90,10 +93,11 @@ private:
 	}
 
 public:
-	FlowUpdateLP(vector<FlowPair>& flowpairs, int fid[], int n, int s, int t) :
+	FlowUpdateLP(const vector<FlowPair>& flowpairs, const int fid[], const int n, const int s, const int t) :
 			flowpairs(flowpairs), fidmap(fid), rounds(
-					(n - 1) * flowpairs.size()), S(s), T(t), N(n), pairsnum(
+					(n - 1) * flowpairs.size()), S(s), T(t), nofPairs(
 					flowpairs.size()) {
+
 	}
 
 	void add_constraints(GRBModel& lp) {
@@ -105,7 +109,6 @@ public:
 								const GRBVar& x_r_vi = lp.addVar(0, 1, 0, GRB_BINARY, rvi("x", r, v, i));
 								sum_r += x_r_vi;
 							}
-
 						});
 				if(v!=T) {
 					lp.addConstr(sum_r == 1, "schedule");
@@ -117,11 +120,13 @@ public:
 
 		lp.update();
 
-		foreach_flowpair([&](const FlowPair &flowpair,int i) {
+		foreach_flowpair([&](const FlowPair &flowpair, int i) {
 
 			foreach_r([&](int r) {
-						// R >= r.x^r_{v,fid}
+//						printf("for r=%d\n",r);
+				// R >= r.x^r_{v,fid}
 				foreach_v(flowpair, [&](int v) {
+//							printf("for v=%d\n",v);
 							if (r > 0) {
 								const GRBVar& x_r_vi = lp.getVarByName(rvi("x", r, v, i));
 								lp.addConstr(R - r * x_r_vi >= 0, rvi("rounds", r, v, i));
@@ -131,7 +136,7 @@ public:
 				// add all y^r_{u,v,i} for all (u,v) \in P_i, then initialize
 				foreach_edge(flowpair,
 						[&](int u, int v, Edge_label lbl) {
-
+//							printf("for e=(%d,%d)\n",u,v);
 //							mylog<<"\nadding "<<ruvi("y",r,u,v,i);
 							const GRBVar& y_r_uvi = lp.addVar(0, 1, 0, GRB_CONTINUOUS, ruvi("y", r, u, v, i));
 
@@ -203,12 +208,16 @@ public:
 							const GRBVar& y_r_uvi = lp.getVarByName(ruvi("y", r, u, v, i));
 							const GRBVar& y_rminus1_uvi = lp.getVarByName(ruvi("y", r - 1, u, v, i));
 							const GRBVar& fork_r_ui = lp.getVarByName(rvi("fork", r, u, i));
+
+							// TODO
 							lp.addConstr(f_r_uvi - y_r_uvi - fork_r_ui<= 0, ruvi("transientflow", r, u, v, i));
 							lp.addConstr(f_r_uvi - y_rminus1_uvi - fork_r_ui<= 0, ruvi("transientflow", r - 1, u, v, i));
 
 							const GRBVar& alpha_r_uvi = lp.addVar(0, 1, 0, GRB_BINARY, ruvi("alpha", r, u, v, i));
-							lp.addConstr(alpha_r_uvi - 1 + y_r_uvi >= 0, ruvi("transientdemand", r, u, v, i));
-							lp.addConstr(alpha_r_uvi - fork_r_ui >= 0, ruvi("transientdemand", r, u, v, i));
+
+							// TODO
+							lp.addConstr(alpha_r_uvi - 1 + y_r_uvi <= 0, ruvi("transientdemand", r, u, v, i));
+							lp.addConstr(alpha_r_uvi - fork_r_ui <= 0, ruvi("transientdemand", r, u, v, i));
 						});
 
 				lp.update();
@@ -235,7 +244,9 @@ public:
 											++incount;
 										}
 									});
-
+//							if(r>1) {
+//								return;
+//							}
 							const GRBVar& fork_r_vi = lp.getVarByName(rvi("fork", r, v, i));
 							const GRBVar& join_r_vi = lp.addVar(0, 1, 0, GRB_BINARY, rvi("join", r, v, i));
 
@@ -265,28 +276,80 @@ public:
 			}); // r
 }); // i
 
-		// capacity constraints
-		foreach_edge(
-				flowpairs[0].m_g, // main graph edges
-				[&](int u,int v, Edge_label lbl) {
-					foreach_r([&](int r) {
-								if(r<1) {
-									return;
-								}
-								GRBLinExpr demand_r_uv=0;
-								foreach_flowpair([&](FlowPair flowpair, int i) {
-											if(edgeExists(u,v,flowpair)) {
-												const GRBVar &f_r_uvi = lp.getVarByName(ruvi("f",r,u,v,i));
-												const GRBVar &alpha_r_uvi = lp.getVarByName(ruvi("alpha",r,u,v,i));
+	// capacity constraints
+			foreach_edge(
+		 flowpairs[0].m_g, // main graph edges
+		 [&](int u,int v, Edge_label lbl) {
+		 foreach_r([&](int r) {
+		 if(r<1) {
+		 return;
+		 }
+		 GRBLinExpr demand_r_uv=0;
+		 foreach_flowpair([&](FlowPair flowpair, int i) {
+		 if(edgeExists(u,v,flowpair)) {
+		 const GRBVar &f_r_uvi = lp.getVarByName(ruvi("f",r,u,v,i));
+		 const GRBVar &alpha_r_uvi = lp.getVarByName(ruvi("alpha",r,u,v,i));
 
-												demand_r_uv += f_r_uvi;
-												demand_r_uv -= alpha_r_uvi;
-									}
-								});
-						lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
-					});
-				});
+		 demand_r_uv += f_r_uvi;
+//		 demand_r_uv -= alpha_r_uvi;
+		 }
+		 });
+		 lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
+		 });
+		 });
 	}
 };
+
+pair<bool, int> runILP(myTypes::MyGraph& g, const int S, const int T) {
+
+	vector<FlowPair> flowpairs;
+	flowPairs(g, flowpairs);
+	// TODO
+	//flowpairs.pop_back();
+	try {
+		GRBEnv env = GRBEnv();
+		GRBModel model = GRBModel(env);
+		model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
+		model.set(GRB_IntParam_OutputFlag, false);
+
+		int n = num_vertices(g);
+		FlowUpdateLP myLP(flowpairs, fid, n, S, T);
+		myLP.add_constraints(model);
+		model.optimize();
+
+		int numvars = model.get(GRB_IntAttr_NumVars);
+		mylog << "\nnumvars=" << numvars;
+		auto vars = model.getVars();
+
+		// report
+		int optimstatus = model.get(GRB_IntAttr_Status);
+		if (optimstatus == GRB_OPTIMAL) {
+			for (int j = 0; j < numvars; j++) {
+				GRBVar v = vars[j];
+				if (v.get(GRB_DoubleAttr_X) != 0.0) {
+					cout << endl << v.get(GRB_StringAttr_VarName) << " "
+							<< v.get(GRB_DoubleAttr_X) << endl;
+				}
+			}
+			double objval = model.get(GRB_DoubleAttr_ObjVal);
+			mylog << "\nOptimal objective: " << objval << '\n';
+
+//			model.write("debug.lp");
+			return {true, objval};
+
+		} else if (optimstatus == GRB_INFEASIBLE) {
+			mylog << "\nModel is infeasible" << '\n';
+//			model.computeIIS();
+//			model.write("IISmodel.lp");
+			return {false, -1};
+		}
+
+	} catch (GRBException e) {
+		mylog << "\nError code = " << e.getErrorCode() << '\n';
+		mylog << e.getMessage() << '\n';
+	} catch (...) {
+		mylog << "\nException during optimization" << '\n';
+	}
+}
 
 #endif

@@ -96,7 +96,7 @@ void singleEdge(myTypes::MyGraph &g) {
 	e = add_edge(example.S, example.T, g).first;
 	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_both);
-
+	g[e].flows[BLUE] = Flow(flow_both);
 
 	setWeights(g);
 }
@@ -137,36 +137,116 @@ void example_cyclic(myTypes::MyGraph &g) {
 }
 
 void example1(myTypes::MyGraph &g) {
-	g = myTypes::MyGraph(4);
+	g = myTypes::MyGraph(6);
 	Edge<myTypes::MyGraph> e;
+	const int S = 0;
+	const int T = 1;
+	e = add_edge(S, 2, g).first;
+	g[e].capacity = 2;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_both);
 
-	e = add_edge(0, 2, g).first;
+	e = add_edge(S, 3, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(2, 4, g).first;
 	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
 
-	e = add_edge(0, 4, g).first;
+	e = add_edge(2, 5, g).first;
 	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(2, 1, g).first;
-	g[e].capacity = 1;
+	e = add_edge(4, T, g).first;
+	g[e].capacity = 2;
 	g[e].flows[BLUE] = Flow(flow_both);
 	g[e].flows[RED] = Flow(flow_new);
 
-	e = add_edge(2, 3, g).first;
+	e = add_edge(5, T, g).first;
 	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(3, 1, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+}
 
-	e = add_edge(4, 2, g).first;
+void example2(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(4);
+	Edge<myTypes::MyGraph> e;
+	const int S = 0;
+	const int T = 1;
+	e = add_edge(S, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+//	e = add_edge(S, 3, g).first;
+//	g[e].capacity = 2;
+//	g[e].flows[BLUE] = Flow(flow_old);
+//	g[e].flows[RED] = Flow(flow_both);
+
+	e = add_edge(2, T, g).first;
+	g[e].capacity = 2;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(S, T, g).first;
 	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
+
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+}
+
+// only feasible with batch update support
+void example3(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(4);
+	Edge<myTypes::MyGraph> e;
+	const int S = 0;
+	const int T = 1;
+	e = add_edge(S, 2, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(S, 3, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	e = add_edge(2, T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(3, T, g).first;
+	g[e].capacity = 1;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
+
+	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
+	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
+		put(edge_weight, g, *e_it, 1);
+	}
+}
+
+// for auto path allocation
+void example4(myTypes::MyGraph &g) {
+	g = myTypes::MyGraph(4);
+	Edge<myTypes::MyGraph> e;
+	const int S = 0;
+	const int T = 1;
+	e = add_edge(S, 2, g).first;
+	e = add_edge(S, 3, g).first;
+	e = add_edge(2, T, g).first;
+	e = add_edge(3, T, g).first;
 
 	graph_traits<myTypes::MyGraph>::edge_iterator e_it, e_end;
 	for (tie(e_it, e_end) = edges(g); e_it != e_end; ++e_it) {
@@ -254,7 +334,41 @@ void longDependency(myTypes::MyGraph &g) {
 }
 
 class StefanGraph {
-	using G=myTypes::MyGraph;
+	using G = myTypes::MyGraph;
+
+	void addRandomPath(const int fid, const Usage_E usage) {
+		int r, jump;
+		Vertex<G> next, currNode = s;
+		Edge<G> e;
+		enum {
+			UPPER, LOWER
+		} current = UPPER;
+		for (int i = -1; i < k - 1; ++i) {
+			r = rand() % 2;
+			jump = (currNode == s) ? i + 1 : i + 1 + rand() % (k - i - 1);
+
+			if (r == UPPER) {
+				next = (current == LOWER) ? upper[jump] : upper[i + 1];
+				//mylog << "next on upper:" << get(vertex_name, g, next);
+				current = UPPER;
+
+			} else { // r==LOWER
+				next = (current == UPPER) ? lower[jump] : lower[i + 1];
+				//mylog << "next on lower:" << get(vertex_name, g, next);
+				current = LOWER;
+			}
+			auto p = edge(currNode, next, g);
+			e = (p.second) ? p.first : add_edge(currNode, next, g).first; // stupid BGL doesn't provide a better way
+
+			currNode = next;
+			setEdgeUsage(g[e], usage, fid);
+		}
+		// finish off at t
+		auto p = edge(currNode, t, g);
+		e = (p.second) ? p.first : add_edge(currNode, t, g).first;
+		setEdgeUsage(g[e], usage, fid);
+	}
+
 public:
 	StefanGraph(G &g, int length) :
 			g(g), k(length) {
@@ -276,41 +390,6 @@ public:
 		addRandomPath(RED, flow_old);
 		addRandomPath(RED, flow_new);
 		/* initialize random seed: */
-		srand(time(NULL));
-
-	}
-
-	void addRandomPath(int fid, Usage_E usage) {
-		int r, jump;
-		Vertex<G> next, currNode = s;
-		Edge<G> e;
-		enum {
-			UPPER, LOWER
-		} current = UPPER;
-		for (int i = -1; i < k - 1; ++i) {
-			r = rand() % 2;
-			jump = (currNode == s) ? i + 1 : i + 1 + rand() % (k - i - 1);
-
-			if (r == UPPER) {
-				next = (current == LOWER) ? upper[jump] : upper[i + 1];
-				mylog << "next on upper:" << get(vertex_name, g, next);
-				current = UPPER;
-
-			} else { // r==LOWER
-				next = (current == UPPER) ? lower[jump] : lower[i + 1];
-				mylog << "next on lower:" << get(vertex_name, g, next);
-				current = LOWER;
-			}
-			auto p = edge(currNode, next, g);
-			e = (p.second) ? p.first : add_edge(currNode, next, g).first; // stupid BGL doesn't provide a better way
-
-			currNode = next;
-			g[e].flows[fid] = usage;
-		}
-		// finish off at t
-		auto p = edge(currNode, t, g);
-		e = (p.second) ? p.first : add_edge(currNode, t, g).first;
-		g[e].flows[fid] = usage;
 	}
 	G &g;
 	Vertex<G> s, t;

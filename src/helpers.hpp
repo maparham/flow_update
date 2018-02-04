@@ -1,6 +1,14 @@
 #ifndef HELPERS_HPP_
 #define HELPERS_HPP_
 
+#define DEBUG 1
+
+#ifdef DEBUG
+#define PRINTF printf
+#else
+#define PRINTF(format, args...) ((void)0)
+#endif
+
 #include <iostream>
 #include <utility>                   // for std::pair
 #include <algorithm>                 // for std::for_each
@@ -18,7 +26,6 @@ using namespace std;
 
 #define INF numeric_limits<int>::max()
 #define MINUSINF numeric_limits<int>::min()
-#define DEBUG 1
 
 struct Logger: std::ostream {
 	template<typename T>
@@ -34,10 +41,11 @@ struct Logger: std::ostream {
 enum FlowID {
 	BLUE, RED
 };
+const int fid[] = { BLUE, RED };
 
 // define custom property names
 enum Usage_E {
-	flow_old, flow_new, flow_both, flow_none
+	flow_none, flow_old, flow_new, flow_both
 };
 
 string fnames[] = { "old", "new", "both", "none" };
@@ -50,6 +58,9 @@ struct Flow {
 			usage(usage) {
 	}
 	Usage_E usage;
+	Usage_E operator()() {
+		return usage;
+	}
 };
 
 struct Edge_label {
@@ -65,8 +76,12 @@ struct graph_label {
 
 template<class Graph>
 using Edge= typename graph_traits<Graph>::edge_descriptor;
+
 template<class Graph>
 using Vertex = typename graph_traits<Graph>::vertex_descriptor;
+
+template<class G>
+using Path = vector<Vertex<G>>;
 
 struct myTypes {
 	// create a typedef for the Graph type
@@ -96,20 +111,6 @@ struct myTypes {
 };
 
 typedef vector<Vertex<myTypes::MyGraph>> ParentMap;
-
-template<class Graph>
-string getFlowName(Graph &g, Edge<Graph> e, int fid) {
-	if (g[e].flows[fid].usage == flow_old) {
-		return to_string(fid) + "_old";
-
-	} else if (g[e].flows[fid].usage == flow_new) {
-		return to_string(fid) + "_new";
-
-	} else if (g[e].flows[fid].usage == flow_both) {
-		return to_string(fid) + "_both";
-	}
-	return "";
-}
 
 template<class Graph, class PrintLog>
 void print_network(Graph& g, PrintLog &plog) {
@@ -236,20 +237,36 @@ string edgeToStr(Edge<myTypes::MyGraph> e, myTypes::MyGraph &g) {
 	}
 }
 
-template<class Vertex>
-void print_parent_map(ParentMap &p, Vertex s, Vertex t) {
-	Vertex v = t;
-	int n = 50;
-	if (p[t] == t) {
-		mylog << "\ninvalid parent map";
-		return;
+template<class G = myTypes::MyGraph>
+void printPath(Path<G> p) {
+	for (int i = 0; i < p.size(); ++i) {
+		PRINTF(",%d", p[i]);
 	}
-	mylog << "\n";
-	do {
-		mylog << v << ',';
+	PRINTF("\n");
+}
+
+template<class Vertex>
+vector<Vertex> getPath(ParentMap &p, Vertex s, Vertex t) {
+	vector<Vertex> path;
+	Vertex v = t;
+	while (p[v] != 1 && v != p[v]) {
+		path.push_back(v);
 		v = p[v];
-	} while (v != s && n--);
-	mylog << s;
+	}
+	if (v == s) {
+		path.push_back(s);
+	}
+	reverse(path.begin(), path.end());
+	return path;
+}
+
+template<class Graph>
+vector<Vertex<Graph>> k_SP(Graph &g, Vertex<Graph> s, Vertex<Graph> t, int k) {
+	ParentMap pm(num_vertices(g), -1);
+	if (k_SP(g, s, t, k, pm) == false) {
+		return {};
+	}
+	return getPath(pm, s, t);
 }
 
 // saving dotfiles for rendering to PNG
@@ -262,6 +279,32 @@ void save_dot_file(std::string const& fname, G& graph) {
 
 	std::ofstream ofs(fname);
 	write_graphviz_dp(ofs, graph, dp);
+}
+
+void flowPairs(myTypes::MyGraph& g, vector<FlowPair>& flowpairs) {
+	// extract pairs
+	FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED, g);
+	FlowVertexFilter<myTypes::MyGraph> vertexFilter1(BLUE, g), vertexFilter2(
+			RED, g);
+	FlowPair p_blue(g, edgeFilter1, vertexFilter1);
+	FlowPair p_red(g, edgeFilter2, vertexFilter2);
+	flowpairs.push_back(p_blue);
+	flowpairs.push_back(p_red);
+}
+
+template<class G>
+bool trivial(G& g) {
+	typename graph_traits<G>::edge_iterator e, e_end;
+	bool b = true;
+	for (tie(e, e_end) = edges(g); e != e_end; ++e) {
+		if (g[*e].flows[0].usage == flow_old || g[*e].flows[0].usage == flow_new) {
+			b = false;
+		}
+		if (g[*e].flows[1].usage == flow_old || g[*e].flows[1].usage == flow_new) {
+			b = false;
+		}
+	}
+	return b;
 }
 
 #endif /* HELPERS_HPP_ */

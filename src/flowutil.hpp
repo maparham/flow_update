@@ -52,4 +52,46 @@ bool edgeExists(const Vertex<FlowPair> source, const Vertex<FlowPair> target,
 		const FlowPair &g) {
 	return edge(source, target, g).second;
 }
+
+void setMinimalCapacity(Edge_label& el) {
+	el.capacity = 1;
+	if (el.flows[BLUE]() == flow_none || el.flows[RED]() == flow_none) { // then 1 is enough
+		return;
+	}
+	if (el.flows[BLUE]() == flow_both || el.flows[RED]() == flow_both || el.flows[BLUE]() == el.flows[RED]()) {
+		el.capacity = 2;
+	}
+}
+
+template<class G>
+void setMinimalCapacities(G& g) {
+	graph_traits<myTypes::MyGraph>::edge_iterator e, e_end;
+	for (tie(e, e_end) = edges(g); e != e_end; ++e) {
+		setMinimalCapacity(g[*e]);
+	}
+}
+
+void setEdgeUsage(Edge_label& el, const Usage_E usage, const int fid) {
+	if (el.flows[fid].usage != flow_none) {
+		el.flows[fid] = flow_both;
+	} else {
+		el.flows[fid] = usage;
+	}
+	setMinimalCapacity(el);
+}
+
+template<class Graph>
+string getFlowName(Graph &g, Edge<Graph> e, int fid) {
+	if (g[e].flows[fid].usage == flow_old) {
+		return to_string(fid) + "_old";
+
+	} else if (g[e].flows[fid].usage == flow_new) {
+		return to_string(fid) + "_new";
+
+	} else if (g[e].flows[fid].usage == flow_both) {
+		return to_string(fid) + "_both";
+	}
+	return "";
+}
+
 #endif /* FLOWUTIL_HPP_ */

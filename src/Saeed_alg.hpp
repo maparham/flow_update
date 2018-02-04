@@ -2,12 +2,14 @@
 #define TWU_HPP_
 
 #include <utility>                   // for std::pair
+#include <tuple>
 #include <algorithm>                 // for std::for_each
 #include <boost/graph/topological_sort.hpp>
 #include <boost/graph/depth_first_search.hpp>
 
 #include "flowutil.hpp"
 #include "flowpairgenerator.hpp"
+#include "helpers.hpp"
 
 using namespace boost;
 using namespace std;
@@ -27,7 +29,7 @@ bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
 				<< isJoinNode(*ii, p, fid) << ",";
 
 	Block *block = NULL;
-	// scan the nodes in the topomylogical order, create a block on each fork node
+	// scan the nodes in the topological order, create a block on each fork node
 	// close the current block on the first join node
 	// add any node in between to the current block
 	bool added;
@@ -83,13 +85,12 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 //	print_graph(*blocks[2]);
 
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
-		auto enditr = end(root[*ei].flows), beginitr = begin(root[*ei].flows);
 
+		auto enditr = end(root[*ei].flows), beginitr = begin(root[*ei].flows);
 		auto oldFlow = find_if(beginitr, enditr,
 				[](Flow f) {return f.usage==flow_old;});
 		auto newFlow = find_if(beginitr, enditr,
 				[](Flow f) {return f.usage==flow_new;});
-
 		int fid_old = oldFlow - beginitr;
 		int fid_new = newFlow - beginitr;
 
@@ -195,88 +196,43 @@ myTypes::Result evaluate(Graph &g) {
 	return myTypes::Result(has_cycle, diameter);
 }
 
-void two_flows_algorithm() {
-	// the network graph
-	myTypes::MyGraph g(0);
+std::tuple<bool, int, int> two_flows_update(myTypes::MyGraph& g) {
+	vector<FlowPair> fpairs;
+	flowPairs(g, fpairs);
+	FlowPair p_blue = fpairs[0];
+	FlowPair p_red = fpairs[1];
+
+	//		print_network1(p_blue, "BLUE pair:");
+	//		print_network1(p_red, "RED pair:");
+
 	vector<myTypes::MyGraph*> blocks;
 
-	randomNetwork randnet;
-	int diameter = -1, nofBlocks = -1;
-	double count = 0, acceptance = 0;
-	bool isDAG;
-	srand(time(NULL));
+	computeBlocks(p_blue, g, BLUE, blocks);
+	computeBlocks(p_red, g, RED, blocks);
+	if (blocks.size() == 0) { // old and new paths are the same in both pairs
+		mylog << "\n bogus instance!\n";
+		return {true, -1,-1};
+	}
+	mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
+			<< num_vertices(*blocks[0]) << "\n";
 
-	do {
-		++count;
-		g = myTypes::MyGraph(0);
-
-//		exampleNetwork(g);
-//		example_cyclic(g);
-//		example1(g);
-//		longDependency(g);
-		StefanGraph sg(g, 5);
-//		setVertexNames(g);
-
-		// generate the underlying graph
-//		int nof_vert = rand() % 20 + 6;
-//		int nof_edges = nof_vert + rand() % (1 * nof_vert);
-//		if (!randnet.generate(g, nof_vert, nof_edges)) {
-//			continue;
-//		}
-		++acceptance;
-		print_network1(g, "\ngenerated flow pairs:");
-
-		FlowEdgeFilter<myTypes::MyGraph> edgeFilter1(BLUE, g), edgeFilter2(RED,
-				g);
-		FlowVertexFilter<myTypes::MyGraph> vertexFilter1(BLUE, g),
-				vertexFilter2(RED, g);
-
-		FlowPair p_blue(g, edgeFilter1, vertexFilter1);
-		FlowPair p_red(g, edgeFilter2, vertexFilter2);
-
-		//		print_network1(p_blue, "BLUE pair:");
-		//		print_network1(p_red, "RED pair:");
-
-		blocks.clear();
-		if (!computeBlocks(p_blue, g, BLUE, blocks)
-				|| !computeBlocks(p_red, g, RED, blocks)) {
-			mylog << "\nblocks not generated";
-			continue;
-		}
-		mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
-				<< num_vertices(*blocks[0]) << "\n";
-
-#ifdef DEBUG
-		for (auto *b : blocks) {
-			mylog << "\nprinting block for flow: "
-					<< get_property(*b, graph_name) << "\n";
-			print_network(*b);
-		}
+#ifdef DEBUG1
+	for (auto *b : blocks) {
+		mylog << "\nprinting block for flow: "
+				<< get_property(*b, graph_name) << "\n";
+		print_network(*b);
+	}
 #endif
-		myTypes::Directed dep(blocks.size());
+	myTypes::Directed dep(blocks.size());
 
-		computeDependencyGraph(blocks, g, dep);
+	computeDependencyGraph(blocks, g, dep);
 
-		mylog << "\nprinting dependency graph:\n";
-		//print_graph(dep);
+	mylog << "\nprinting dependency graph:\n";
+	print_graph(dep);
 
-		myTypes::Result res = evaluate(dep);
-		diameter = res.second;
-		isDAG = !res.first;
-		nofBlocks = blocks.size();
-		mylog << "\nhas_cycle? " << res.first << " diameter=" << diameter
-				<< "\n";
-		if ((size_t) count % 500 == 0)
-			cout << acceptance / count << "\n";
-
-	} while ((diameter < 5));
-
-	cout << "\nnoBlocks=" << nofBlocks << " diameter=" << diameter << " isDAG="
-			<< isDAG;
-	print_network_forced(g);
-	save_dot_file(
-			"diameter" + to_string(diameter) + "DAG" + to_string(isDAG)
-					+ ".dot", g);
+	myTypes::Result res = evaluate(dep);
+	mylog << "\nhascycle=" << res.first << '\n';
+	return {res.first, res.second, blocks.size()};
 }
 
 #endif
