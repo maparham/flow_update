@@ -19,8 +19,8 @@ void addSP(Graph &g, int flowID, Usage_E usage, const Path<Graph> &path,
 
 	for (int i = path.size() - 1; i > 1; --i) {
 		Edge<Graph> e = edge(path[i - 1], path[i], g).first;
-		mylog << " ;setting  " << getFlowName(g, e, flowID) << " usage="
-				<< usage << " for edge " << edgeToStr(e, g);
+//		mylog << " ;setting  " << getFlowName(g, e, flowID) << " usage="
+//				<< usage << " for edge " << edgeToStr(e, g);
 		g[e].flows[flowID].usage =
 				(g[e].flows[flowID].usage == flow_none) ? usage : flow_both;
 	}
@@ -266,7 +266,7 @@ class OverlapFlows {
 			}
 			assert(tmp.size() > 2);
 //			path.insert(path.end(), basePath.begin() + j, basePath.begin() + i - 1);
-			path.insert(path.end(), tmp.begin(), tmp.end() - 1);	// append the detour until one before the end
+			path.insert(path.end(), tmp.begin(), tmp.end() - 1);	// append the detour until one before the last node
 			s_j = basePath[i];
 			j = i;
 		}
@@ -276,15 +276,14 @@ class OverlapFlows {
 		}
 
 		path.insert(path.end(), basePath.begin() + j, basePath.end()); // append the remaining
+
 		printPath(path);
 
 		assert(path[0] == s && path.back() == t);
-		for (size_t i = 1; i < path.size(); ++i) {
-			printf("path.size()=%d, i=%d ,i < path.size()=%d\n", (int)path.size(), i, i < path.size());
-//			PRINTF("path[i - 1], path[i]=%d,%d i=%d\n",path[i - 1] ,path[i],i);
+		for (int i = 1; i < path.size(); ++i) {
 			assert(path[i - 1] != path[i]);
 		}
-
+		return path;
 	}
 
 public:
