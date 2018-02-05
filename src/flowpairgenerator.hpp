@@ -251,7 +251,7 @@ class OverlapFlows {
 	const int s;
 	const int t;
 
-	Path<G> next_path(Path<G>& basePath) {
+	Path<G> next_path(Path<G>& basePath, const int mode = 1) {
 		printf("basePath.size()=%d\n", basePath.size());
 		assert(basePath.size() > 0 && basePath[0] == s && basePath.back() == t);
 		vector<Vertex<G>> path;
@@ -259,11 +259,12 @@ class OverlapFlows {
 		for (int i = 1; i < basePath.size(); ++i) {
 			PRINTF("detour for [%d,%d]\n", s_j, basePath[i]);
 			const vector<Vertex<G>>& tmp =
-					k_SP(g, s_j, basePath[i], 1);
+					k_SP(g, s_j, basePath[i], mode);
 			if (tmp.size() == 0) {
 				PRINTF("detour not found\n");
 				continue;
 			}
+			printPath(tmp,"tmp: ");
 			assert(tmp.size() > 2);
 //			path.insert(path.end(), basePath.begin() + j, basePath.begin() + i - 1);
 			path.insert(path.end(), tmp.begin(), tmp.end() - 1);	// append the detour until one before the last node
@@ -283,6 +284,12 @@ class OverlapFlows {
 		for (int i = 1; i < path.size(); ++i) {
 			assert(path[i - 1] != path[i]);
 		}
+
+		if (equal(path, basePath)) {
+			PRINTF("the same as basePath, trying differently...\n");
+			return next_path(basePath, ??);
+		}
+
 		return path;
 	}
 

@@ -94,4 +94,17 @@ string getFlowName(Graph &g, Edge<Graph> e, int fid) {
 	return "";
 }
 
+template<class G = myTypes::MyGraph>
+bool equal(const Path<G>& p1, const Path<G>& p2) {
+	if (p1.size() != p2.size()) {
+		return false;
+	}
+	for (int i = 0; i < p1.size(); ++i) {
+		if (p1[i] != p2[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
 #endif /* FLOWUTIL_HPP_ */

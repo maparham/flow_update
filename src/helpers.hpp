@@ -238,7 +238,8 @@ string edgeToStr(Edge<myTypes::MyGraph> e, myTypes::MyGraph &g) {
 }
 
 template<class G = myTypes::MyGraph>
-void printPath(Path<G> p) {
+void printPath(Path<G> p, const char* txt = "") {
+	PRINTF("%s", txt);
 	for (int i = 0; i < p.size(); ++i) {
 		PRINTF(",%d", p[i]);
 	}
