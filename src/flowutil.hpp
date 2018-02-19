@@ -107,4 +107,27 @@ bool equal(const Path<G>& p1, const Path<G>& p2) {
 	return true;
 }
 
+template<class G = myTypes::MyGraph>
+bool prefixPath(const Path<G>& p1, const Path<G>& p2) {
+	if (p1.size() > p2.size()) {
+		return false;
+	}
+	for (int i = 0; i < p1.size(); ++i) {
+		if (p1[i] != p2[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// set flow_none to all links
+template<class G = myTypes::MyGraph>
+void clearFlows(G &g) {
+	typename graph_traits<G>::edge_iterator e, e_end;
+	for (tie(e, e_end) = edges(g); e != e_end; ++e) {
+		g[*e].flows[BLUE].usage = flow_none;
+		g[*e].flows[RED].usage = flow_none;
+	}
+}
+
 #endif /* FLOWUTIL_HPP_ */

@@ -6,6 +6,7 @@
 #include <ctime>
 #include <boost/graph/breadth_first_search.hpp>
 
+#include <functional>
 #include "flowutil.hpp"
 #include "ksp.hpp"
 
@@ -17,7 +18,7 @@ template<class Graph>
 void addSP(Graph &g, int flowID, Usage_E usage, const Path<Graph> &path,
 		Vertex<Graph> s, Vertex<Graph> t) {
 
-	for (int i = path.size() - 1; i > 1; --i) {
+	for (int i = path.size(); i-- > 1;) {
 		Edge<Graph> e = edge(path[i - 1], path[i], g).first;
 //		mylog << " ;setting  " << getFlowName(g, e, flowID) << " usage="
 //				<< usage << " for edge " << edgeToStr(e, g);
@@ -178,8 +179,7 @@ void postGenerate(myTypes::MyGraph &g) {
 		g[*e_it].flows[RED].usage = flow_none;
 	}
 }
-
-void setCapacity(myTypes::MyGraph &g) {
+void setCapacityRand(myTypes::MyGraph &g) {
 	/* initialize random seed: */
 	srand(time(NULL));
 
@@ -240,7 +240,7 @@ class randomNetwork {
 			mylog << "\npairs could not be generated";
 			return false;
 		}
-		setCapacity(g);
+		setCapacityRand(g);
 		return true;
 	}
 };
@@ -261,10 +261,9 @@ class OverlapFlows {
 			const vector<Vertex<G>>& tmp =
 					k_SP(g, s_j, basePath[i], mode);
 			if (tmp.size() == 0) {
-				PRINTF("detour not found\n");
+				PRINTF("no detour, continue\n");
 				continue;
 			}
-			printPath(tmp,"tmp: ");
 			assert(tmp.size() > 2);
 //			path.insert(path.end(), basePath.begin() + j, basePath.begin() + i - 1);
 			path.insert(path.end(), tmp.begin(), tmp.end() - 1);	// append the detour until one before the last node
@@ -278,16 +277,14 @@ class OverlapFlows {
 
 		path.insert(path.end(), basePath.begin() + j, basePath.end()); // append the remaining
 
-		printPath(path);
-
 		assert(path[0] == s && path.back() == t);
 		for (int i = 1; i < path.size(); ++i) {
 			assert(path[i - 1] != path[i]);
 		}
 
-		if (equal(path, basePath)) {
-			PRINTF("the same as basePath, trying differently...\n");
-			return next_path(basePath, ??);
+		if (prefixPath(path, basePath)) {
+			PRINTF("the same as basePath, recurse with mode=%d\n", mode + 1);
+			return next_path(basePath, mode + 1);
 		}
 
 		return path;
@@ -302,7 +299,7 @@ public:
 
 template<class G>
 bool OverlapFlows<G>::allocate() {
-	mylog << "pair1.old flow:\n";
+	mylog << "BLUE.old flow:\n";
 	Path<G> f1old = k_SP(g, s, t, 0);
 	if (f1old.size() > 1) {
 		PRINTF("adding path1: ");
@@ -313,7 +310,7 @@ bool OverlapFlows<G>::allocate() {
 		return false;
 	}
 
-	mylog << "\npair1.new flow:\n";
+	mylog << "\nBLUE.new flow:\n";
 	Path<G> f1new = next_path(f1old);
 	if (f1new.size() > 1) {
 		PRINTF("adding path2: ");
@@ -324,9 +321,10 @@ bool OverlapFlows<G>::allocate() {
 		return false;
 	}
 
-	mylog << "\npair2.old flow:\n";
+	mylog << "\nRED.old flow:\n";
 	Path<G> f2old = next_path(f1new);
 	if (f2old.size() > 1) {
+		assert(prefixPath(f2old, f1old) == false);
 		addSP(g, BLUE, flow_old, f2old, s, t);
 
 	} else {
@@ -334,9 +332,11 @@ bool OverlapFlows<G>::allocate() {
 		return false;
 	}
 
-	mylog << "\npair2.new flow:\n";
+	mylog << "\nRED.new flow:\n";
 	Path<G> f2new = next_path(f2old);
 	if (f2new.size() > 1) {
+		assert(prefixPath(f2new, f1old) == false);
+		assert(prefixPath(f2new, f1new) == false);
 		addSP(g, BLUE, flow_new, f2new, s, t);
 	} else {
 		mylog << "\ns,t is disconnected(3)";
@@ -344,6 +344,6 @@ bool OverlapFlows<G>::allocate() {
 	}
 	// auto set capacities
 	setMinimalCapacities(g);
+	return true;
 }
-
 #endif /* FLOWPAIRGENERATOR_HPP_ */

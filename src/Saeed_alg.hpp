@@ -9,6 +9,7 @@
 
 #include "flowutil.hpp"
 #include "flowpairgenerator.hpp"
+
 #include "helpers.hpp"
 
 using namespace boost;
@@ -85,6 +86,7 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 //	print_graph(*blocks[2]);
 
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
+		mylog << "\nhandling target edge " << edgeToStr((*ei), root);
 
 		auto enditr = end(root[*ei].flows), beginitr = begin(root[*ei].flows);
 		auto oldFlow = find_if(beginitr, enditr,
@@ -102,8 +104,6 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 			continue; // sufficient capacity for 2 flows
 		}
 
-		mylog << "\nhandling target edge " << edgeToStr((*ei), root);
-
 		mylog << "\n# of blocks=" << blocks.size();
 
 		for (int b1 = 0; b1 < blocks.size(); ++b1) {
@@ -114,86 +114,101 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 
 				int b2_fid = get_property(*blocks[b2], graph_name);
 				if (b1_fid == b2_fid) {
-					mylog << "same fids=>continue";
+					mylog << "same fids=>continue ";
 					continue;
 				}
 
 				if (!edgeExists(*ei, *blocks[b1])
 						|| !edgeExists(*ei, *blocks[b2])) {
-					mylog << "blocks do not overlap on the edge "
-							<< edgeToStr(*ei, root);
+					PRINTF("blocks do not overlap on the edge %s\n", edgeToStr(*ei, root).c_str());
 					continue; //  b1 and b2 do not share the edge
 				}
-				mylog << " edgeExists in both";
+				mylog << " edgeExists in both\n";
 				// now add the dependency edge
 				// the edge must point to the block vertex whose old flow is assigned to the link *ei
 				if (fid_old == b2_fid && fid_new == b1_fid) {
-					mylog << "\nadding dependency between blocks:" << b1 << "->"
-							<< b2;
+					PRINTF("adding dependency between blocks: %d->%d\n", b1, b2);
 					add_edge(b1, b2, dependency);
 
 				} else if (fid_old == b1_fid && fid_new == b2_fid) {
-					mylog << "\nadding dependency between blocks1:" << b2
-							<< "->" << b1;
+					PRINTF("adding dependency between blocks: %d->%d\n", b2, b1);
 					add_edge(b2, b1, dependency);
 
 				} else {
-					mylog << "\nsomething is wrong! **b2_idx=" << b2
-							<< " b2_fid=" << b2_fid;
+					mylog << "something is wrong! **b2_idx=" << b2
+							<< " b2_fid=" << b2_fid << "\n";
 				}
 			}
 		}
 	}
-//	mylog << "dummy dependency";
-//	add_edge(1, 0, dependency);
 }
 
-template<class Graph>
-struct cycle_detector: public default_dfs_visitor {
-	cycle_detector(Graph &myDAG, bool &cycle, int &diameter) :
-			myDAG(myDAG), has_cycle(cycle), diameter(diameter) {
+template<class G>
+class BlockGraphVisitor: public default_dfs_visitor {
+public:
+	struct Result {
+		bool cyclic;
+		int diameter;
+		int headBlock;
+	};
+	BlockGraphVisitor(G &myDAG, BlockGraphVisitor<G>::Result &result) :
+			myDAG(myDAG), result(result) {
+		result.diameter = -1;
+		result.headBlock = -1;
+		result.cyclic = 0;
 	}
-	void back_edge(const Edge<Graph> &e, const Graph &g) {
-		has_cycle = true;
+	void back_edge(const Edge<G> &e, const G &g) {
+//		PRINTF("back_edge (%d,%d)", source(e, g), target(e, g));
+		result.cyclic = true;
 	}
-	void discover_vertex(const Vertex<Graph> &v, const Graph &g) {
-//		mylog << "\ndiscover_vertex " << v;
-		put(vertex_distance, myDAG, v, 0); // init
+	void discover_vertex(const Vertex<G> &v, const G &g) {
+		//		PRINTF("discover_vertex %d\n", v);
+		if (out_degree(v, g) == 0) {
+			put(vertex_distance, myDAG, v, 0);
+		} else {
+			put(vertex_distance, myDAG, v, -INF);
+		}
+		headMap[v] = v;
 	}
-	void start_vertex(const Vertex<Graph> &v, const Graph &g) {
-//		mylog << "\nstart_vertex " << v;
+	void finish_vertex(const Vertex<G> &v, const G &g) {
+		PRINTF("finish_vertex %d\n", v);
+		int h = get(vertex_distance, g)[v];
+		if(h==-INF) { // v is the first finished vertex in a cycle
+			put(vertex_distance, myDAG, v, 0);
+		}
 	}
-	void finish_vertex(const Vertex<Graph> &v, const Graph &g) {
-//		mylog << "\nfinish_vertex " << v;
-	}
-	void finish_edge(const Edge<Graph> &e, const Graph &g) {
-//		mylog << "\nfinish_edge " << source(e, g);
-		int h_src = get(vertex_distance, g)[source(e, g)];
-		int h_tar = get(vertex_distance, g)[target(e, g)];
-		h_src = max(h_tar + 1, h_src); // update the source vertex height
-		put(vertex_distance, myDAG, source(e, g), h_src);
+	void finish_edge(const Edge<G> &e, const G &g) {
+		PRINTF("finish_edge (%d,%d)\n", source(e, g), target(e, g));
+		int src = source(e, g);
+		int tar = target(e, g);
+		int h_src = get(vertex_distance, g)[src];
+		int h_tar = get(vertex_distance, g)[tar];
+		// update the source vertex height
+		if (h_tar!=-INF && h_tar + 1 > h_src) {
+			h_src = h_tar + 1;
+			headMap[src] = headMap[tar];
+			put(vertex_distance, myDAG, source(e, g), h_src);
 //		mylog << "\nheight of v=" << source(e, g) << " is " << h_src;
-		diameter = max(diameter, h_src); // the max height so far
+			// the max height so far
+			if (result.diameter < h_src) {
+				result.diameter = h_src;
+				result.headBlock = headMap[src];
+				PRINTF("on longest path, result.diameter=%d\n",result.diameter);
+			}
+		}
 	}
-	void forward_or_cross_edge(const Edge<Graph> &e, const Graph &g) {
-//		mylog << "\nforward_or_cross_edge " << target(e, g);
-//		int h_ = get(vertex_distance, g)[target(e, g)]; // height value from a previously finished vertex
-//		mylog << "\nheight of v=" << target(e, g) << " is " << h_;
-		//height = h_; // new start value
-		// n finish_edge will be called on source(e, g)
-	}
-	Graph &myDAG;
-	bool &has_cycle;
-	int &diameter;
+private:
+	Result &result;
+	G &myDAG;
+	map<int, int> headMap;
 };
 
 template<class Graph>
-myTypes::Result evaluate(Graph &g) {
-	bool has_cycle = false;
-	int diameter = 0;
-	cycle_detector<Graph> sd(g, has_cycle, diameter);
-	depth_first_search(g, visitor(sd));
-	return myTypes::Result(has_cycle, diameter);
+typename BlockGraphVisitor<Graph>::Result evaluate(Graph &g) {
+	typename BlockGraphVisitor<Graph>::Result res;
+	BlockGraphVisitor<Graph> dv(g, res);
+	depth_first_search(g, visitor(dv));
+	return res;
 }
 
 std::tuple<bool, int, int> two_flows_update(myTypes::MyGraph& g) {
@@ -201,38 +216,46 @@ std::tuple<bool, int, int> two_flows_update(myTypes::MyGraph& g) {
 	flowPairs(g, fpairs);
 	FlowPair p_blue = fpairs[0];
 	FlowPair p_red = fpairs[1];
-
-	//		print_network1(p_blue, "BLUE pair:");
-	//		print_network1(p_red, "RED pair:");
-
 	vector<myTypes::MyGraph*> blocks;
 
 	computeBlocks(p_blue, g, BLUE, blocks);
 	computeBlocks(p_red, g, RED, blocks);
 	if (blocks.size() == 0) { // old and new paths are the same in both pairs
 		mylog << "\n bogus instance!\n";
-		return {true, -1,-1};
+		return {true, -1, -1};
 	}
-	mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
-			<< num_vertices(*blocks[0]) << "\n";
+//	mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
+//			<< num_vertices(*blocks[0]) << "\n";
 
 #ifdef DEBUG1
 	for (auto *b : blocks) {
 		mylog << "\nprinting block for flow: "
-				<< get_property(*b, graph_name) << "\n";
+		<< get_property(*b, graph_name) << "\n";
 		print_network(*b);
 	}
 #endif
 	myTypes::Directed dep(blocks.size());
-
 	computeDependencyGraph(blocks, g, dep);
 
 	mylog << "\nprinting dependency graph:\n";
-	print_graph(dep);
+//	print_graph(dep);
 
-	myTypes::Result res = evaluate(dep);
-	mylog << "\nhascycle=" << res.first << '\n';
-	return {res.first, res.second, blocks.size()};
+	auto res = evaluate(dep);
+	int rounds = -1;
+	if (res.headBlock > -1) {
+		const myTypes::MyGraph &headBlock = *blocks[res.headBlock];
+		auto [itr_begin, itr_end] = edges(headBlock);
+		int fid = get_property(headBlock, graph_name);
+		// count new flow links in the head block
+		int c = count_if(itr_begin, itr_end, [&](Edge<myTypes::MyGraph> e) {
+			return headBlock[e].flows[fid].usage==flow_new;
+		});
+		// decide whether a preparation round is required
+		rounds = c > 1 ? res.diameter + 2 : res.diameter + 1;
+		// Note: cleanup round (+1) for the last block in chain is not included
+		// Also, when rounds<3, it could be the case that a block alone needs 3 rounds=>not handled
+	}
+	return {res.cyclic, rounds, blocks.size()};
 }
 
 #endif

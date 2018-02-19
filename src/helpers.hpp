@@ -1,9 +1,9 @@
 #ifndef HELPERS_HPP_
 #define HELPERS_HPP_
 
-#define DEBUG 1
+//#define DEBUG 1
 
-#ifdef DEBUG
+#if DEBUG
 #define PRINTF printf
 #else
 #define PRINTF(format, args...) ((void)0)
@@ -30,7 +30,7 @@ using namespace std;
 struct Logger: std::ostream {
 	template<typename T>
 	Logger& operator <<(const T& x) {
-#ifdef DEBUG
+#if DEBUG
 		std::cout << x;
 		std::cout.flush();
 #endif
@@ -75,13 +75,10 @@ struct graph_label {
 };
 
 template<class Graph>
-using Edge= typename graph_traits<Graph>::edge_descriptor;
+using Edge = typename graph_traits<Graph>::edge_descriptor;
 
 template<class Graph>
 using Vertex = typename graph_traits<Graph>::vertex_descriptor;
-
-template<class G>
-using Path = vector<Vertex<G>>;
 
 struct myTypes {
 	// create a typedef for the Graph type
@@ -109,6 +106,12 @@ struct myTypes {
 
 	typedef typename property_map<MyGraph, vertex_index1_t>::type Index1Map;
 };
+
+template<class Graph = myTypes::MyGraph>
+using EI = typename graph_traits<Graph>::edge_iterator;
+
+template<class G = myTypes::MyGraph>
+using Path = vector<Vertex<G>>;
 
 typedef vector<Vertex<myTypes::MyGraph>> ParentMap;
 
@@ -306,6 +309,71 @@ bool trivial(G& g) {
 		}
 	}
 	return b;
+}
+
+// enumerate all #num indices in [0,maxVal)
+struct Combination {
+	vector<int> current; // permutation
+	int N, c;
+
+	Combination(int maxVal, int num) :
+			N(maxVal), c(num) {
+		assert(N >= c);
+		for (int i = 0; i < N; ++i) {
+			current.push_back(i);
+		}
+	}
+	bool next() {
+		// sort descending, skipping the first c values
+		sort(current.begin() + c, current.end(), greater<int>());
+		if (!next_permutation(current.begin(), current.end())) {
+			return false;
+		}
+//		copy(current.begin(), current.end(), ostream_iterator<int>(cout, ","));
+//		printf("\n");
+		return true;
+	}
+	size_t factorial(int x) {
+		size_t f = 1;
+		while (x > 0) {
+			f *= x--;
+		}
+		return f;
+	}
+	vector<int> operator()() {
+		vector<int> res(current.begin(), current.begin() + c);
+		return res;
+	}
+	vector<int> operator+(const vector<int>& b) {
+		vector<int> res(current.begin(), current.begin() + c);
+		res.insert(res.end(), b.begin(), b.end());
+		return res;
+	}
+};
+
+template<class G = myTypes::MyGraph>
+bool inPath(const Vertex<G> &v, const Path<>& p) {
+	for (Vertex<G> x : p) {
+		if (x == v) {
+			return true;
+		}
+	}
+	return false;
+}
+
+template<class G = myTypes::MyGraph>
+void loadFromFile(G &g, const char* filePath) {
+	string str = "";
+	ifstream in(filePath);
+	str.append((istreambuf_iterator<char>(in)), istreambuf_iterator<char>());
+	dynamic_properties dp;
+	typename property_map<G, vertex_name_t>::type name = get(vertex_name, g);
+	dp.property("node_id", name);
+	if (!str.length()) {
+		printf("file not found/empty\n");
+		exit(0);
+	}
+	read_graphviz(str, g, dp);
 }
 
 #endif /* HELPERS_HPP_ */

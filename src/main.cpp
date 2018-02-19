@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
+#include <time.h>
 
 #include "testcases.hpp"
 #include "Saeed_alg.hpp"
 #include "gurobi_MIP.hpp"
+#include<all_flowpairs.hpp>
 
 using namespace std;
 
@@ -25,91 +27,54 @@ void handler(int sig) {
 	exit(1);
 }
 
-void two_flows_algorithm_sim() {
-	// the network graph
-	myTypes::MyGraph g(0);
+template<class G>
+int maxRounds(G& g) {
+	int maxd = 0, x = 0;
+	ForEach_allocation<G>(g, [&]() {
+		++x;
+//		printf("Allocation %d\n",x);
+//			print_network_forced(g);
+			/*
+			 * 		setMinimalCapacities(g);
+			 auto [feasible, rounds1] =
+			 runILP(g, 0, 1);
+			 if(feasible) {
+			 maxd = max(maxd,rounds1);
+			 printf("rounds=%d\n", rounds1);
+			 }
+			 */
 
-	randomNetwork randnet;
-	int rounds = -1, nofBlocks = -1;
-	double count = 0, acceptance = 0;
-	bool feasible;
-	srand(time(NULL));
-
-	do {
-		++count;
-		g = myTypes::MyGraph(0);
-
-//		exampleNetwork(g);
-//		example_cyclic(g);
-//		example3(g);
-//		longDependency(g);
-		StefanGraph sg(g, 4);
-//		setVertexNames(g);
-
-// random graph
-//		int nof_vert = rand() % 20 + 6;
-//		int nof_edges = nof_vert + rand() % (1 * nof_vert);
-//		if (!randnet.generate(g, nof_vert, nof_edges)) {
-//			continue;
-//		}
-
-		if (trivial(g)) {
-			continue;
-		}
-
-		auto [cyclic, diameter_, nofBlocks_] = two_flows_update(g);
-//		 feasible = !cyclic;
-//		 rounds = diameter_;
-		nofBlocks = nofBlocks_;
-
-		tie(feasible, rounds) = runILP(g, 0, 1);
-
-		if (feasible == cyclic) {
-			printf("trouble!!\n");
-			print_network(g);
-			return;
-		}
-
-		mylog << "\nfeasible? " << feasible << " rounds=" << rounds
-				<< "\n";
-		if (feasible) {
-			++acceptance;
-		}
-
-		if ((size_t) count % 1000 == 0)
-			printf("%f\n", acceptance / count);
-
-	} while ((rounds < 5 || !feasible));
-
-	cout << "\nnofBlocks=" << nofBlocks << " diameter=" << rounds << " isDAG="
-			<< feasible;
-	print_network_forced(g);
-	save_dot_file(
-			"rounds" + to_string(rounds) + "DAG" + to_string(feasible)
-					+ ".dot", g);
+			auto [cyclic, rounds2, nofBlocks] = two_flows_update(g);
+			PRINTF("rounds=%d, cyclic=%d, nofBlocks=%d\n",
+					rounds2, cyclic, nofBlocks);
+			maxd = max(maxd,rounds2);
+//			assert(feasible==!cyclic);
+		});
+	printf("#Allocations=%d\n", x);
+	return maxd;
 }
 
 int main(int, char*[]) {
 	signal(SIGSEGV, handler); // install our handler
 	srand(time(NULL));
+	using G = myTypes::MyGraph;
+	G g(0);
 
-	myTypes::MyGraph g(0);
-
-	//generate/load graph
-	//paperExample(g);
-	//singleEdge(g);
-	//minimalExample(g);
-	example4(g);
-	//StefanGraph(g, 10);
-
+	const char* f1 = "/Users/mahmoud/eclipse-workspace/2flowupdate/data/Garr201112.graphml_directed.gv";
+	//loadFromFile(g, f1);
+//	paperExample(g);
 	print_network(g);
+	PRINTF("%d links, %d nodes\n", num_edges(g), num_vertices(g));
+
+	clock_t t0 = clock();
+
+	const int max_rounds = maxRounds(g);
+
+	printf("max diameter=%d\n", max_rounds);
 
 //	runILP(g, 0, 1);
 //	two_flows_algorithm_sim();
-	OverlapFlows<> alg(g);
-	alg.allocate();
 
-	print_network(g);
 	/*
 	 cout << "\npair1:\n";
 	 print_graph (flowpairs[0]);
@@ -117,5 +82,7 @@ int main(int, char*[]) {
 	 print_graph(flowpairs[1]);
 	 */
 
+	clock_t elapsed_secs = double(clock() - t0) / CLOCKS_PER_SEC;
+	printf("total time=%d sec\n", elapsed_secs);
 	return 0;
 }

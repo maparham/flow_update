@@ -1,6 +1,8 @@
 #ifndef GUROBI_FLOWUPDATE_CPP_
 #define GUROBI_FLOWUPDATE_CPP_
 
+//#define ILP_REPORT_DETAILS 1
+
 #include <functional>
 #include "gurobi_c++.h"
 #include "flowutil.hpp"
@@ -9,11 +11,6 @@ using namespace std;
 
 class FlowUpdateLP {
 private:
-	const vector<FlowPair>& flowpairs;
-	const int *fidmap;
-	const int S, T;
-	const int rounds, nofPairs;
-
 	template<class Graph>
 	void foreach_v(Graph& g, std::function<void(int)> f) {
 		assert(num_vertices(g) > 0);
@@ -92,10 +89,14 @@ private:
 		return name.str();
 	}
 
+	const vector<FlowPair>& flowpairs;
+	const int *fidmap;
+	const int S, T;
+	const int rounds, nofPairs;
+
 public:
 	FlowUpdateLP(const vector<FlowPair>& flowpairs, const int fid[], const int n, const int s, const int t) :
-			flowpairs(flowpairs), fidmap(fid), rounds(
-					(n - 1) * flowpairs.size()), S(s), T(t), nofPairs(
+			flowpairs(flowpairs), fidmap(fid), S(s), T(t), rounds((n - 1) * flowpairs.size()), nofPairs(
 					flowpairs.size()) {
 
 	}
@@ -276,27 +277,27 @@ public:
 			}); // r
 }); // i
 
-	// capacity constraints
-			foreach_edge(
-		 flowpairs[0].m_g, // main graph edges
-		 [&](int u,int v, Edge_label lbl) {
-		 foreach_r([&](int r) {
-		 if(r<1) {
-		 return;
-		 }
-		 GRBLinExpr demand_r_uv=0;
-		 foreach_flowpair([&](FlowPair flowpair, int i) {
-		 if(edgeExists(u,v,flowpair)) {
-		 const GRBVar &f_r_uvi = lp.getVarByName(ruvi("f",r,u,v,i));
-		 const GRBVar &alpha_r_uvi = lp.getVarByName(ruvi("alpha",r,u,v,i));
+		// capacity constraints
+		foreach_edge(
+				flowpairs[0].m_g, // main graph edges
+				[&](int u,int v, Edge_label lbl) {
+					foreach_r([&](int r) {
+								if(r<1) {
+									return;
+								}
+								GRBLinExpr demand_r_uv=0;
+								foreach_flowpair([&](FlowPair flowpair, int i) {
+											if(edgeExists(u,v,flowpair)) {
+												const GRBVar &f_r_uvi = lp.getVarByName(ruvi("f",r,u,v,i));
+//												const GRBVar &alpha_r_uvi = lp.getVarByName(ruvi("alpha",r,u,v,i));
 
-		 demand_r_uv += f_r_uvi;
+				demand_r_uv += f_r_uvi;
 //		 demand_r_uv -= alpha_r_uvi;
-		 }
-		 });
-		 lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
-		 });
-		 });
+			}
+		});
+lp.addConstr(demand_r_uv <= lbl.capacity, ruv("capacity",r,u,v));
+});
+});
 	}
 };
 
@@ -317,20 +318,21 @@ pair<bool, int> runILP(myTypes::MyGraph& g, const int S, const int T) {
 		myLP.add_constraints(model);
 		model.optimize();
 
-		int numvars = model.get(GRB_IntAttr_NumVars);
-		mylog << "\nnumvars=" << numvars;
-		auto vars = model.getVars();
-
 		// report
 		int optimstatus = model.get(GRB_IntAttr_Status);
 		if (optimstatus == GRB_OPTIMAL) {
+#ifdef ILP_REPORT_DETAILS
+			int numvars = model.get(GRB_IntAttr_NumVars);
+			mylog << "\nnumvars=" << numvars;
+			auto vars = model.getVars();
 			for (int j = 0; j < numvars; j++) {
 				GRBVar v = vars[j];
 				if (v.get(GRB_DoubleAttr_X) != 0.0) {
 					cout << endl << v.get(GRB_StringAttr_VarName) << " "
-							<< v.get(GRB_DoubleAttr_X) << endl;
+					<< v.get(GRB_DoubleAttr_X) << endl;
 				}
 			}
+#endif
 			double objval = model.get(GRB_DoubleAttr_ObjVal);
 			mylog << "\nOptimal objective: " << objval << '\n';
 
@@ -344,12 +346,15 @@ pair<bool, int> runILP(myTypes::MyGraph& g, const int S, const int T) {
 			return {false, -1};
 		}
 
-	} catch (GRBException e) {
+	}
+	catch (GRBException e) {
 		mylog << "\nError code = " << e.getErrorCode() << '\n';
 		mylog << e.getMessage() << '\n';
 	} catch (...) {
 		mylog << "\nException during optimization" << '\n';
 	}
+	assert(0);
+	return {};
 }
 
 #endif

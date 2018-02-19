@@ -21,11 +21,11 @@ void setWeights(myTypes::MyGraph &g) {
 }
 
 void paperExample(myTypes::MyGraph &g) {
-	put(vertex_name, g, example.S = add_vertex(g), "S0");
-	put(vertex_name, g, example.T = add_vertex(g), "T1");
-	put(vertex_name, g, example.W = add_vertex(g), "W2");
-	put(vertex_name, g, example.U = add_vertex(g), "U3");
-	put(vertex_name, g, example.V = add_vertex(g), "V4");
+	put(vertex_name, g, example.S = add_vertex(g), "0");
+	put(vertex_name, g, example.T = add_vertex(g), "1");
+	put(vertex_name, g, example.W = add_vertex(g), "2");
+	put(vertex_name, g, example.U = add_vertex(g), "3");
+	put(vertex_name, g, example.V = add_vertex(g), "4");
 
 	Edge<myTypes::MyGraph> e;
 	e = add_edge(example.U, example.W, g).first;
@@ -56,7 +56,7 @@ void paperExample(myTypes::MyGraph &g) {
 	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(example.V, example.T, g).first;
-	g[e].capacity = 2;
+	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_old);
 	g[e].flows[BLUE] = Flow(flow_new);
 
