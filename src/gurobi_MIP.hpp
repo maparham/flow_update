@@ -7,6 +7,14 @@
 #include "gurobi_c++.h"
 #include "flowutil.hpp"
 
+#define DEBUG 1
+
+#if DEBUG
+#define PRINTF printf
+#else
+#define PRINTF(format, args...) ((void)0)
+#endif
+
 using namespace std;
 
 class FlowUpdateLP {
@@ -334,13 +342,13 @@ pair<bool, int> runILP(myTypes::MyGraph& g, const int S, const int T) {
 			}
 #endif
 			double objval = model.get(GRB_DoubleAttr_ObjVal);
-			mylog << "\nOptimal objective: " << objval << '\n';
+			PRINTF("Optimal objective: %f\n", objval);
 
 //			model.write("debug.lp");
 			return {true, objval};
 
 		} else if (optimstatus == GRB_INFEASIBLE) {
-			mylog << "\nModel is infeasible" << '\n';
+			PRINTF("Model is infeasible\n");
 //			model.computeIIS();
 //			model.write("IISmodel.lp");
 			return {false, -1};
@@ -357,4 +365,5 @@ pair<bool, int> runILP(myTypes::MyGraph& g, const int S, const int T) {
 	return {};
 }
 
+#undef DEBUG
 #endif

@@ -1,6 +1,19 @@
 #ifndef TWU_HPP_
 #define TWU_HPP_
 
+#define DEBUG 0
+#define Log2File 0
+
+#if DEBUG
+#if Log2File
+#define PRINTF(...) fprintf(f,__VA_ARGS__)
+#else
+#define PRINTF printf
+#endif
+#else
+#define PRINTF(format, args...) ((void)0)
+#endif
+
 #include <utility>                   // for std::pair
 #include <tuple>
 #include <algorithm>                 // for std::for_each
@@ -16,7 +29,7 @@ using namespace boost;
 using namespace std;
 
 template<class FPair, class Graph, class Block>
-bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
+bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block>& blocks) {
 	myTypes::VertexList sorted;
 
 	if (!topological_sort(p, std::back_inserter(sorted))) { // if not a DAG
@@ -24,69 +37,62 @@ bool computeBlocks(FPair &p, Graph &g, FlowID fid, vector<Block*> &blocks) {
 		return false;
 	}
 
-	mylog << "A topological ordering: ";
-	for (auto ii = sorted.rbegin(); ii != sorted.rend(); ++ii)
-		mylog << *ii << "_" << isForkNode(*ii, p, fid) << "_"
-				<< isJoinNode(*ii, p, fid) << ",";
-
-	Block *block = NULL;
+//	mylog << "A topological ordering: ";
+//	for (auto ii = sorted.rbegin(); ii != sorted.rend(); ++ii) {
+//		mylog << *ii << "_" << isForkNode(*ii, p, fid) << "_"
+//				<< isJoinNode(*ii, p, fid) << ",";
+//	}
+//	PRINTF("\n");
 	// scan the nodes in the topological order, create a block on each fork node
 	// close the current block on the first join node
 	// add any node in between to the current block
-	bool added;
+	bool added = false; // vertex added?
+	bool open = false; // block open?
 	for (auto vi = sorted.rbegin(); vi != sorted.rend(); ++vi) {
 		//string name = get(vertex_name, p)[*vi];
 
-		if (isJoinNode(*vi, p, fid)) {
-			blocks.push_back(block); // block is done
-			mylog << "\nadding join node " << *vi << "\n";
-			add_vertex(*vi, *block);
+		if (isJoinNode(*vi, p, fid)) { // block is done
+//			assert(open);
+//			assert(!added);
+			Block &block = blocks.back();
+			PRINTF("adding join node %d, fid=%d\n", *vi, fid);
+			add_vertex(*vi, block);
 			added = true;
-			//print_network(*block);
-			block = NULL;
+//			printf("block parent=%dV,%dE\n", num_vertices(*block.m_parent), num_edges(*block.m_parent));
+			open = false;
 		}
 
 		if (isForkNode(*vi, p, fid)) {
-			block = &(g.create_subgraph()); // next block
-//			add_vertex(0, *block);
-//			add_vertex(3, *block);
-//			mylog << "\n*block:\n";
-//			print_graph(*block);
-//			edgeExists(*edges(g).first, *block);
-
-			get_property(*block, graph_name) = fid;
-			mylog << "\nadding fork node " << *vi;
-			add_vertex(*vi, *block);
-			added = true;
+			Block &b = g.create_subgraph();
+			blocks.push_back(b); // pushed a copy
+			Block &block = blocks.back(); // next block
+			get_property(block, graph_name) = fid;
+			PRINTF("adding fork node %d, fid=%d\n", *vi, fid);
+			add_vertex(*vi, block);
+//			added = true;
+			open = true;
 
 		} else if (!added) {
-			mylog << "\nadding " << *vi << " degrees=" << in_degree(*vi, p)
-					<< "," << out_degree(*vi, p) << " ";
-			if (block == NULL) {
-				mylog << "\nblock graph was not created...skipping this node\n";
+			if (!open) {
+				PRINTF("no open block...skipping node %d\n", *vi);
 				continue;
 			}
-			add_vertex(*vi, *block);
+			PRINTF("adding %d degrees=%d,%d, fid=%d\n", *vi, in_degree(*vi, p), out_degree(*vi, p), fid);
+			Block &block = blocks.back();
+			add_vertex(*vi, block);
 		}
 		added = false;
 	}
 	return blocks.size() > 0;
 }
 
-void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
+void computeDependencyGraph(const vector<myTypes::MyGraph> &blocks,
 		myTypes::MyGraph &root, myTypes::Directed &dependency) {
-	// here only 2 flow-pairs is assumed
+// here only 2 flow-pairs is assumed
 	typename graph_traits<myTypes::MyGraph>::edge_iterator ei, ei_end;
 
-//	mylog << "printing b0\n";
-//	print_graph(*blocks[0]);
-//	mylog << "printing b1\n";
-//	print_graph(*blocks[1]);
-//	mylog << "printing b2\n";
-//	print_graph(*blocks[2]);
-
 	for (tie(ei, ei_end) = edges(root); ei != ei_end; ++ei) {
-		mylog << "\nhandling target edge " << edgeToStr((*ei), root);
+		PRINTF("\nhandling target edge %s, cap=%d\n", edgeToStr((*ei), root).c_str(), root[*ei].capacity);
 
 		auto enditr = end(root[*ei].flows), beginitr = begin(root[*ei].flows);
 		auto oldFlow = find_if(beginitr, enditr,
@@ -104,26 +110,28 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 			continue; // sufficient capacity for 2 flows
 		}
 
-		mylog << "\n# of blocks=" << blocks.size();
+		//mylog << "\n# of blocks=" << blocks.size();
 
 		for (int b1 = 0; b1 < blocks.size(); ++b1) {
 
-			int b1_fid = get_property(*blocks[b1], graph_name);
+			int b1_fid = get_property(blocks[b1], graph_name);
 
 			for (int b2 = b1 + 1; b2 < blocks.size(); ++b2) {
 
-				int b2_fid = get_property(*blocks[b2], graph_name);
+				int b2_fid = get_property(blocks[b2], graph_name);
+//				PRINTF("b1=%d fid1=%d, b2=%d fid2=%d\n", b1, b1_fid, b2, b2_fid);
 				if (b1_fid == b2_fid) {
-					mylog << "same fids=>continue ";
+					PRINTF("same fids=>continue\n");
 					continue;
 				}
 
-				if (!edgeExists(*ei, *blocks[b1])
-						|| !edgeExists(*ei, *blocks[b2])) {
-					PRINTF("blocks do not overlap on the edge %s\n", edgeToStr(*ei, root).c_str());
+				if (!edgeExists(*ei, blocks[b1])
+						|| !edgeExists(*ei, blocks[b2])) {
+					PRINTF("blocks %d and %d do not overlap on the edge %s\n",
+							b1, b2, edgeToStr(*ei, root).c_str());
 					continue; //  b1 and b2 do not share the edge
 				}
-				mylog << " edgeExists in both\n";
+				PRINTF(" edgeExists in both\n");
 				// now add the dependency edge
 				// the edge must point to the block vertex whose old flow is assigned to the link *ei
 				if (fid_old == b2_fid && fid_new == b1_fid) {
@@ -135,8 +143,9 @@ void computeDependencyGraph(const vector<myTypes::MyGraph*> &blocks,
 					add_edge(b2, b1, dependency);
 
 				} else {
-					mylog << "something is wrong! **b2_idx=" << b2
+					cout << "something is wrong! **b2_idx=" << b2
 							<< " b2_fid=" << b2_fid << "\n";
+					assert(0);
 				}
 			}
 		}
@@ -147,60 +156,76 @@ template<class G>
 class BlockGraphVisitor: public default_dfs_visitor {
 public:
 	struct Result {
-		bool cyclic;
-		int diameter;
-		int headBlock;
+		bool cyclic = false;
+		int diameter = 0;
+		int headBlockIdx = -1;
+		int tailBlockIdx = -1;
 	};
 	BlockGraphVisitor(G &myDAG, BlockGraphVisitor<G>::Result &result) :
 			myDAG(myDAG), result(result) {
-		result.diameter = -1;
-		result.headBlock = -1;
-		result.cyclic = 0;
 	}
 	void back_edge(const Edge<G> &e, const G &g) {
-//		PRINTF("back_edge (%d,%d)", source(e, g), target(e, g));
+		PRINTF("back_edge (%d,%d)", source(e, g), target(e, g));
 		result.cyclic = true;
 	}
 	void discover_vertex(const Vertex<G> &v, const G &g) {
-		//		PRINTF("discover_vertex %d\n", v);
+		PRINTF("discover_vertex %d\n", v);
 		if (out_degree(v, g) == 0) {
 			put(vertex_distance, myDAG, v, 0);
 		} else {
 			put(vertex_distance, myDAG, v, -INF);
 		}
 		headMap[v] = v;
+		parentMap[v] = v;
 	}
 	void finish_vertex(const Vertex<G> &v, const G &g) {
 		PRINTF("finish_vertex %d\n", v);
 		int h = get(vertex_distance, g)[v];
-		if(h==-INF) { // v is the first finished vertex in a cycle
+		if (h == -INF) { // v is the first finished vertex in a cycle
 			put(vertex_distance, myDAG, v, 0);
+			headMap[v] = v;
 		}
 	}
 	void finish_edge(const Edge<G> &e, const G &g) {
 		PRINTF("finish_edge (%d,%d)\n", source(e, g), target(e, g));
 		int src = source(e, g);
 		int tar = target(e, g);
+		if(inPath(tar,src)) {
+			return;
+		}
+
 		int h_src = get(vertex_distance, g)[src];
 		int h_tar = get(vertex_distance, g)[tar];
-		// update the source vertex height
-		if (h_tar!=-INF && h_tar + 1 > h_src) {
+		// update the source vertex distance
+		if ( h_tar > -INF && h_tar + 1 > h_src) {
 			h_src = h_tar + 1;
 			headMap[src] = headMap[tar];
+			parentMap[src] = tar;
 			put(vertex_distance, myDAG, source(e, g), h_src);
-//		mylog << "\nheight of v=" << source(e, g) << " is " << h_src;
 			// the max height so far
 			if (result.diameter < h_src) {
 				result.diameter = h_src;
-				result.headBlock = headMap[src];
+				result.headBlockIdx = headMap[src];
+				result.tailBlockIdx = src;
 				PRINTF("on longest path, result.diameter=%d\n",result.diameter);
+//				assert(inPath(result.tailBlock,result.headBlockIdx));
 			}
 		}
 	}
 private:
 	Result &result;
 	G &myDAG;
-	map<int, int> headMap;
+	map<int,int> headMap, parentMap;
+	bool inPath(const int &s, const int &v) {
+		int x = s;
+		while (parentMap[x] != x) {
+			x = parentMap[x];
+			if(x==v) {
+				return true;
+			}
+		}
+		return false;
+	}
 };
 
 template<class Graph>
@@ -211,12 +236,13 @@ typename BlockGraphVisitor<Graph>::Result evaluate(Graph &g) {
 	return res;
 }
 
-std::tuple<bool, int, int> two_flows_update(myTypes::MyGraph& g) {
+template<class G>
+std::tuple<bool, int, int> two_flows_update(G& g) {
 	vector<FlowPair> fpairs;
 	flowPairs(g, fpairs);
 	FlowPair p_blue = fpairs[0];
 	FlowPair p_red = fpairs[1];
-	vector<myTypes::MyGraph*> blocks;
+	vector<G> blocks;
 
 	computeBlocks(p_blue, g, BLUE, blocks);
 	computeBlocks(p_red, g, RED, blocks);
@@ -224,38 +250,69 @@ std::tuple<bool, int, int> two_flows_update(myTypes::MyGraph& g) {
 		mylog << "\n bogus instance!\n";
 		return {true, -1, -1};
 	}
-//	mylog << "\nblocks.size()=" << blocks.size() << "num_vertices="
-//			<< num_vertices(*blocks[0]) << "\n";
-
-#ifdef DEBUG1
-	for (auto *b : blocks) {
-		mylog << "\nprinting block for flow: "
-		<< get_property(*b, graph_name) << "\n";
-		print_network(*b);
+	PRINTF("\nblocks.size()=%d, num_vertices=%d\n", blocks.size(), num_vertices(blocks[0]));
+#ifdef DEBUG
+	for (int i=0;i<blocks.size();++i) {
+		PRINTF("\nblock%d: %luV,%luE, fid=%d\n",i,
+				num_vertices(blocks[i]), num_edges(blocks[i]), get_property(blocks[i], graph_name));
+//		print_network(blocks[i]);
 	}
 #endif
 	myTypes::Directed dep(blocks.size());
 	computeDependencyGraph(blocks, g, dep);
 
-	mylog << "\nprinting dependency graph:\n";
-//	print_graph(dep);
-
+#if DEBUG
+	printf("\nprinting dependency graph\n");
+	print_graph(dep);
+#endif
 	auto res = evaluate(dep);
-	int rounds = -1;
-	if (res.headBlock > -1) {
-		const myTypes::MyGraph &headBlock = *blocks[res.headBlock];
-		auto [itr_begin, itr_end] = edges(headBlock);
-		int fid = get_property(headBlock, graph_name);
-		// count new flow links in the head block
-		int c = count_if(itr_begin, itr_end, [&](Edge<myTypes::MyGraph> e) {
-			return headBlock[e].flows[fid].usage==flow_new;
+	PRINTF("res.diameter=%d, res.tailBlockIdx=%d, res.headBlockIdx=%d\n", res.diameter, res.tailBlockIdx,
+			res.headBlockIdx);
+
+	int rounds = res.diameter + 1; // since we have at least one block
+
+	// case 1: decide whether a final cleanup round is required
+	if (res.headBlockIdx > -1) {
+		const auto &b = blocks[res.headBlockIdx];
+		const auto [itr_begin, itr_end] = edges(b);
+		int fid = get_property(b, graph_name);
+		// count old-flow-links
+		int c = count_if(itr_begin, itr_end, [&](Edge<G> e) {
+			return b[e].flows[fid].usage==flow_new;
 		});
-		// decide whether a preparation round is required
-		rounds = c > 1 ? res.diameter + 2 : res.diameter + 1;
-		// Note: cleanup round (+1) for the last block in chain is not included
-		// Also, when rounds<3, it could be the case that a block alone needs 3 rounds=>not handled
+		PRINTF("headBlock%d has %d new links, fid=%d\n", res.headBlockIdx, c, fid);
+		rounds += (c > 1);
+	}
+
+	// case 2: decide whether an initial preparation round is required
+	if (res.tailBlockIdx > -1) {
+		const auto &b = blocks[res.tailBlockIdx];
+		const auto [itr_begin, itr_end] = edges(b);
+		int fid = get_property(b, graph_name);
+		// count new-flow-links
+		int c = count_if(itr_begin, itr_end, [&](Edge<G> e) {
+			return b[e].flows[fid].usage==flow_old;
+		});
+		PRINTF("tailBlock%d has %d old links, fid=%d\n", res.tailBlockIdx, c, fid);
+		rounds += (c > 1);
+	}
+
+	// case 3: when rounds<3, it could be the case that some block needs 3 rounds anyway
+	for (int i = 0; i < blocks.size(); ++i) {
+		auto &b = blocks[i];
+		const auto [itr_begin, itr_end] = edges(b);
+		for (int fid : { BLUE, RED }) {
+			int c_newlinks = count_if(itr_begin, itr_end, [&](Edge<G> e) {
+				return b[e].flows[fid].usage==flow_new;
+			});
+			int c_oldlinks = count_if(itr_begin, itr_end, [&](Edge<G> e) {
+				return b[e].flows[fid].usage==flow_old;
+			});
+			rounds = max(rounds, (c_newlinks > 1) + (c_oldlinks > 1) + 1); // ensure the minimum required rounds
+		}
 	}
 	return {res.cyclic, rounds, blocks.size()};
 }
 
+#undef DEBUG
 #endif

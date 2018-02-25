@@ -30,7 +30,7 @@ bool isJoinNode(const Vertex<Graph> &v, const Graph &g, int fid) {
 
 	for (; in != in_end; ++in) {
 		Usage_E usage = g[*in].flows[fid].usage;
-		mylog << "{" << edgeToStr(*in, g) << fnames[usage] << "}";
+//		mylog << "{" << edgeToStr(*in, g) << fnames[usage] << "}";
 		fold = fold || (usage == flow_old);
 		fnew = fnew || (usage == flow_new);
 	}

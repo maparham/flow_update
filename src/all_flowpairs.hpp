@@ -8,10 +8,19 @@
 #ifndef ALL_FLOWPAIRS_HPP_
 #define ALL_FLOWPAIRS_HPP_
 
+#define DEBUG 0
+
+#if DEBUG
+#define PRINTF printf
+#else
+#define PRINTF(format, args...) ((void)0)
+#endif
+
 template<class G = myTypes::MyGraph>
 class ForEach_allocation {
 	const int S, T;
 	G &g;
+
 	struct Path_Enum: public default_dfs_visitor {
 		const Vertex<G> S, T;
 		map<int, vector<Path<G>>> &subpathMap;
@@ -22,7 +31,7 @@ class ForEach_allocation {
 //			PRINTF("discover_vertex %d\n", v);
 			//		put(vertex_distance, g, v, 0); // init
 			if (v == T) {
-				PRINTF("T visited, paths.size=%d\n", paths.size());
+//				PRINTF("T visited, paths.size=%d\n", paths.size());
 				subpathMap[T].push_back(Path<G>( { T }));
 			}
 		}
@@ -42,8 +51,6 @@ class ForEach_allocation {
 				Path<G> pp( { parent });
 				pp.insert(pp.begin() + 1, p.begin(), p.end());
 				parentPaths.push_back(pp);
-				//	printPath(pp);
-//				sleep(1);
 			}
 //			PRINTF("parentPaths=%d\n", parentPaths.size());
 		}
@@ -56,34 +63,50 @@ class ForEach_allocation {
 		vector<Path<G>> paths;
 	};
 	public:
-	ForEach_allocation(G &g, std::function<void()> fn, const int S = 0, const int T = 1) :
+	vector<Path<G>> paths;
+	ForEach_allocation(G &g, const int S, const int T, std::function<void(size_t&, const vector<int>)> fn) :
 			g(g), S(S), T(T) {
-		map<int, vector<Path<G>>> pmap;
+		map<int, vector<Path<G>> > pmap;
 		Path_Enum pe(g, pmap, S, T);
 		depth_first_search(g, visitor(pe)); // compute all S-T paths
-		const vector<Path<G>> &paths = pmap[S]; // all S-T paths
+		paths = pmap[S]; // all S-T paths
 
 		for (int i = 0; i < paths.size(); ++i) {
 			printPath(paths[i]);
 		}
-		PRINTF("paths.size=%d\n", paths.size());
+//		printf("paths.size=%d ", paths.size());
+		if (paths.size() < 3) {
+			return;
+		}
 		Combination comb1(paths.size(), 2);
+		Combination comb2(paths.size(), 2);
+
+		size_t num = pow(comb1(), 2);
+//		printf(" #allocations=%lu\n", num);
 		do {
-			Combination comb2(paths.size(), 2);
-			do {
+			Combination comb2 = comb1;
+			while (comb2.next()) { // initial +1 offset
 				clearFlows(g);
-				vector<int> idx = comb1 + comb2(); // join the vectors
-				assert(idx.size() == 4);
-//				copy(idx.begin(), idx.end(), ostream_iterator<int>(cout, ","));
-//				printf("\n");
+				vector<int> idx = comb1.toVector(comb2); // join the vectors
+
+#if DEBUG
+				PRINTF("idx=");
+				copy(idx.begin(), idx.end(), ostream_iterator<int>(cout, ","));
+				PRINTF("\n");
+#endif
+//						assert(idx[0]!=idx[2] || idx[1]!=idx[3]);
 				addSP(g, BLUE, flow_old, paths[idx[0]], S, T);
 				addSP(g, BLUE, flow_new, paths[idx[1]], S, T);
 				addSP(g, RED, flow_old, paths[idx[2]], S, T);
 				addSP(g, RED, flow_new, paths[idx[3]], S, T);
-				fn();
-			} while (comb2.next());
+				fn(--num, idx);
+//				if (idx == vector<int>( { 0, 4, 2, 0 })) {
+//					exit(0);
+//				}
+			}
 		} while (comb1.next());
 	}
 };
 
+#undef DEBUG
 #endif /* ALL_FLOWPAIRS_HPP_ */

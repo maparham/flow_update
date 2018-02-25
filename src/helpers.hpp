@@ -1,7 +1,7 @@
 #ifndef HELPERS_HPP_
 #define HELPERS_HPP_
 
-//#define DEBUG 1
+#define DEBUG 0
 
 #if DEBUG
 #define PRINTF printf
@@ -23,6 +23,30 @@
 
 using namespace boost;
 using namespace std;
+
+void handler(int sig) {
+	void* array[10];
+	size_t size;
+
+	// get void*'s for all entries on the stack
+	size = backtrace(array, 10);
+
+	// print out all the frames to stderr
+	fprintf(stderr, "Error: signal %d:\n", sig);
+	backtrace_symbols_fd(array, size, STDERR_FILENO);
+	exit(1);
+}
+FILE *f;
+void init() {
+	signal(SIGSEGV, handler); // install our handler
+	/* initialize random seed: */
+	srand(time(NULL));
+	f = fopen("log.txt", "w");
+	if (f == NULL) {
+		printf("Error opening file!\n");
+		exit(1);
+	}
+}
 
 #define INF numeric_limits<int>::max()
 #define MINUSINF numeric_limits<int>::min()
@@ -109,6 +133,8 @@ struct myTypes {
 
 template<class Graph = myTypes::MyGraph>
 using EI = typename graph_traits<Graph>::edge_iterator;
+template<class Graph = myTypes::MyGraph>
+using VI = typename graph_traits<Graph>::vertex_iterator;
 
 template<class G = myTypes::MyGraph>
 using Path = vector<Vertex<G>>;
@@ -244,7 +270,7 @@ template<class G = myTypes::MyGraph>
 void printPath(Path<G> p, const char* txt = "") {
 	PRINTF("%s", txt);
 	for (int i = 0; i < p.size(); ++i) {
-		PRINTF(",%d", p[i]);
+		PRINTF(",%lu", p[i]);
 	}
 	PRINTF("\n");
 }
@@ -319,6 +345,10 @@ struct Combination {
 	Combination(int maxVal, int num) :
 			N(maxVal), c(num) {
 		assert(N >= c);
+		reset();
+	}
+	void reset() {
+		current.clear();
 		for (int i = 0; i < N; ++i) {
 			current.push_back(i);
 		}
@@ -333,21 +363,35 @@ struct Combination {
 //		printf("\n");
 		return true;
 	}
-	size_t factorial(int x) {
+	size_t factorial(int x, const int l = 0) {
 		size_t f = 1;
-		while (x > 0) {
+		while (x > l) {
 			f *= x--;
 		}
 		return f;
 	}
-	vector<int> operator()() {
+	vector<int> toVector() const {
 		vector<int> res(current.begin(), current.begin() + c);
 		return res;
 	}
-	vector<int> operator+(const vector<int>& b) {
-		vector<int> res(current.begin(), current.begin() + c);
-		res.insert(res.end(), b.begin(), b.end());
+	vector<int> toVector(const Combination& comb) {
+		vector<int> res = comb.toVector();
+		res.insert(res.begin(), current.begin(), current.begin() + c); // prepend current
 		return res;
+	}
+	size_t operator()() {
+		return factorial(N, N - c);
+	}
+	Combination operator+(int k) { // only forward
+		Combination comb(N, c);
+		comb.current = current;
+		while (k-- > 0) {
+			comb.next();
+		}
+		return comb;
+	}
+	bool operator==(const Combination &comb) {
+		return equal(current.begin(), current.begin() + c, comb.current.begin());
 	}
 };
 
@@ -376,4 +420,5 @@ void loadFromFile(G &g, const char* filePath) {
 	read_graphviz(str, g, dp);
 }
 
+#undef DEBUG
 #endif /* HELPERS_HPP_ */
