@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <time.h>
+#include <omp.h>
 
 #include "testcases.hpp"
 #include "Saeed_alg.hpp"
@@ -33,7 +34,7 @@ bool verify(G &g, const int rounds, const bool cyclic, vector<int> idx, ForEach_
 	addSP(g, RED, flow_new, forEach.paths[idx[3]], S, T);
 	print_network(g);
 auto [feasible,rounds1]=runILP(g, S, T);
-						assert(feasible == !cyclic);
+																												assert(feasible == !cyclic);
 	if (feasible) {
 		assert(rounds == rounds1);
 	}
@@ -122,30 +123,40 @@ int main(int, char*[]) {
 //	resultFile << "Name\t" << "Fail\t" << "Success\t"
 //			<< "Ratio\t" << "MaxStackSize" << '\n';
 
-	std::ifstream filelist("data/input.txt");
 	std::ofstream all("data/overall.txt", std::ios_base::app);
-	string path;
-	int maxr = 0;
-	while (filelist >> path) {
-		if (path[0] == '#') {
-			continue;
+	int maxr = 0, i = 0, tid;
+
+#pragma omp parallel default(shared) private(tid,i)
+	{
+		std::ifstream filelist("data/input.txt");
+		int tid = omp_get_thread_num();
+		string path;
+		while (filelist >> path) {
+			if (path[0] == '#') {
+				continue;
+			}
+			if (i++ % omp_get_num_threads() != omp_get_thread_num()) { // then not this thread's job
+//			printf("skipping %s; i=%d, thread=%d\n",path.c_str(),i, tid);
+				continue;
+			}
+			printf("Hello from thread %d, nthreads %d\n", tid, omp_get_num_threads());
+			clock_t t1 = clock();
+			Reporter rep(path);
+			printf("\nLoading %s; thread=%d, i=%d\n", path.c_str(), tid, i);
+//			exit(0);
+			G g(0);
+			auto [nodes, links]=loadFromFile(g, path.c_str());
+			printf("%d links, %d nodes\n", links, nodes);
+
+			const int rounds = maxRounds(g, rep);
+
+			maxr = max(maxr, rounds);
+			printf("max rounds=%d\n", rounds);
+			clock_t time = (long double) (clock() - t1) / CLOCKS_PER_SEC;
+			printf("elapsed: %u sec\n", time);
+			all << rep.name << '\t' << nodes << '\t' << links << '\t' << maxr << '\t' << time << '\n';
+			all.flush();
 		}
-		clock_t t1 = clock();
-		Reporter rep(path);
-		printf("\nLoading %s\n", path.c_str());
-
-		G g(0);
-		auto [nodes, links]=loadFromFile(g, path.c_str());
-		printf("%d links, %d nodes\n", links, nodes);
-
-		const int rounds = maxRounds(g, rep);
-
-		maxr = max(maxr, rounds);
-		printf("max rounds=%d\n", rounds);
-		clock_t time = (long double) (clock() - t1) / CLOCKS_PER_SEC;
-		printf("elapsed: %u sec\n", time);
-		all << rep.name << '\t' << nodes << '\t' << links << '\t' << maxr << '\t' << time << '\n';
-		all.flush();
 	}
 	all.close();
 	clock_t elapsed_secs = double(clock() - t0) / CLOCKS_PER_SEC;
