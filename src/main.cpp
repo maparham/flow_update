@@ -11,13 +11,37 @@
 #include "Saeed_alg.hpp"
 #include "gurobi_MIP.hpp"
 #include<all_flowpairs.hpp>
+#include<reporter.hpp>
 
 #define TEST 0
 
 using namespace std;
 
+template<class G, typename V>
+bool verify(G &g, const int rounds, const bool cyclic, vector<int> idx, ForEach_allocation<G> &forEach, const V &S,
+		const V &T) {
+	//					for(int i : idx) {
+	//						Path<G> p = forEach.paths[i];
+	//						copy(p.begin(), p.end(), ostream_iterator<int>(cout, ","));
+	//						printf("\n");
+	//					}
+	// verify the result using the MIP solver
+	clearFlows(g);
+	addSP(g, BLUE, flow_old, forEach.paths[idx[0]], S, T);
+	addSP(g, BLUE, flow_new, forEach.paths[idx[1]], S, T);
+	addSP(g, RED, flow_old, forEach.paths[idx[2]], S, T);
+	addSP(g, RED, flow_new, forEach.paths[idx[3]], S, T);
+	print_network(g);
+auto [feasible,rounds1]=runILP(g, S, T);
+						assert(feasible == !cyclic);
+	if (feasible) {
+		assert(rounds == rounds1);
+	}
+
+}
+
 template<class G>
-int maxRounds(G& g) {
+int maxRounds(G& g, Reporter &report) {
 	int max_all = 0;
 
 	vector<vector<int>> bestPaths;
@@ -36,6 +60,7 @@ int maxRounds(G& g) {
 //				if(cyclic) {
 //					return -1;
 //				}
+
 					PRINTF("rounds=%d, cyclic=%d, nofBlocks=%d, ST=%d,%d\n",
 							rounds, cyclic, nofBlocks, *v1,*v2);
 					if(x%X == 0) {
@@ -48,29 +73,14 @@ int maxRounds(G& g) {
 					max_st = max(max_st, rounds);
 					if(max_all < rounds) {
 						printf("\nwinner! cyclic=%d, rounds=%d, paths=%d, ST=%d,%d\n",cyclic,rounds,forEach.paths.size(),*v1, *v2);
+						//verify(g, rounds, cyclic, idx, forEach, *v1, *v2);
 						max_all = rounds;
-// report the result
-
-//					for(int i : idx) {
-//						Path<G> p = forEach.paths[i];
-//						copy(p.begin(), p.end(), ostream_iterator<int>(cout, ","));
-//						printf("\n");
-//					}
-						/*
-						 clearFlows(g);
-						 addSP(g, BLUE, flow_old, forEach.paths[idx[0]], *v1,*v2);
-						 addSP(g, BLUE, flow_new, forEach.paths[idx[1]], *v1,*v2);
-						 addSP(g, RED, flow_old, forEach.paths[idx[2]], *v1,*v2);
-						 addSP(g, RED, flow_new, forEach.paths[idx[3]], *v1,*v2);
-						 print_network(g);
-						 auto [feasible,rounds1]=runILP(g, *v1,*v2);
-						 assert(rounds==rounds1);
-						 */
 					}
+					// report the result
+					report << cyclic << '\t' << rounds << '\t' << nofBlocks << '\t'
+					<< *v1 << ',' << *v2 << '\t' << forEach.paths.size()
+					<< '\n';
 				});
-			if (max_st > 0) {
-//				printf("ST=(%d,%d)=>%d ", *v1, *v2, max_st);
-			}
 		}
 	}
 
@@ -113,29 +123,33 @@ int main(int, char*[]) {
 //			<< "Ratio\t" << "MaxStackSize" << '\n';
 
 	std::ifstream filelist("data/input.txt");
+	std::ofstream all("data/overall.txt", std::ios_base::app);
 	string path;
 	int maxr = 0;
 	while (filelist >> path) {
 		if (path[0] == '#') {
 			continue;
 		}
+		clock_t t1 = clock();
+		Reporter rep(path);
 		printf("\nLoading %s\n", path.c_str());
 
 		G g(0);
-//		const char* f1 = "/Users/mahmoud/eclipse-workspace/2flowupdate/data/Garr201112.graphml_directed.gv";
-		loadFromFile(g, path.c_str());
-//		print_network(g);
-		printf("%d links, %d nodes\n", num_edges(g), num_vertices(g));
+		auto [nodes, links]=loadFromFile(g, path.c_str());
+		printf("%d links, %d nodes\n", links, nodes);
 
-		const int rounds = maxRounds(g);
+		const int rounds = maxRounds(g, rep);
+
 		maxr = max(maxr, rounds);
 		printf("max rounds=%d\n", rounds);
-		clock_t t1 = clock();
-		printf("elapsed: %d sec\n", double(clock() - t1) / CLOCKS_PER_SEC);
+		clock_t time = (long double) (clock() - t1) / CLOCKS_PER_SEC;
+		printf("elapsed: %u sec\n", time);
+		all << rep.name << '\t' << nodes << '\t' << links << '\t' << maxr << '\t' << time << '\n';
+		all.flush();
 	}
-
+	all.close();
 	clock_t elapsed_secs = double(clock() - t0) / CLOCKS_PER_SEC;
-	printf("total time=%d sec\n", elapsed_secs);
+	printf("total time=%Lf sec\n", elapsed_secs);
 	return 0;
 }
 #endif

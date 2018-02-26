@@ -406,7 +406,7 @@ bool inPath(const Vertex<G> &v, const Path<>& p) {
 }
 
 template<class G = myTypes::MyGraph>
-void loadFromFile(G &g, const char* filePath) {
+pair<size_t, size_t> loadFromFile(G &g, const char* filePath) {
 	string str = "";
 	ifstream in(filePath);
 	str.append((istreambuf_iterator<char>(in)), istreambuf_iterator<char>());
@@ -418,6 +418,7 @@ void loadFromFile(G &g, const char* filePath) {
 		exit(0);
 	}
 	read_graphviz(str, g, dp);
+	return {num_vertices(g), num_edges(g)};
 }
 
 #undef DEBUG
