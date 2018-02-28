@@ -1,3 +1,5 @@
+#define OMP 0
+
 #include <stdio.h>
 #include <execinfo.h>
 #include <gurobi_MIP.hpp>
@@ -6,8 +8,9 @@
 #include <unistd.h>
 #include <algorithm>
 #include <time.h>
+#if OMP
 #include <omp.h>
-
+#endif
 #include "testcases.hpp"
 #include "Saeed_alg.hpp"
 #include "gurobi_MIP.hpp"
@@ -34,7 +37,7 @@ bool verify(G &g, const int rounds, const bool cyclic, vector<int> idx, ForEach_
 	addSP(g, RED, flow_new, forEach.paths[idx[3]], S, T);
 	print_network(g);
 auto [feasible,rounds1]=runILP(g, S, T);
-																												assert(feasible == !cyclic);
+										assert(feasible == !cyclic);
 	if (feasible) {
 		assert(rounds == rounds1);
 	}
@@ -43,7 +46,7 @@ auto [feasible,rounds1]=runILP(g, S, T);
 
 template<class G>
 int maxRounds(G& g, Reporter &report) {
-	int max_all = 0;
+	int max_all = 0, tid = omp_get_thread_num();
 
 	vector<vector<int>> bestPaths;
 	VI<> v1, vend;
@@ -66,19 +69,20 @@ int maxRounds(G& g, Reporter &report) {
 							rounds, cyclic, nofBlocks, *v1,*v2);
 					if(x%X == 0) {
 						float tpa = (double(clock() - t) / CLOCKS_PER_SEC)/X;
-						printf("%f sec/case, left=%lu, wait=%.0fS, ST=(%d,%d), max rounds=%d\n",
-								tpa, left, tpa*left,v1,v2, max_all);
+						printf("Thread%d: %f sec/case, left=%lu, wait=%.0fS, ST=(%d,%d), max rounds=%d\n",
+								tid, tpa, left, tpa*left,v1,v2, max_all);
 						t = clock();
 						fflush(stdout);
 					}
 					max_st = max(max_st, rounds);
 					if(max_all < rounds) {
-						printf("\nwinner! cyclic=%d, rounds=%d, paths=%d, ST=%d,%d\n",cyclic,rounds,forEach.paths.size(),*v1, *v2);
+						printf("thread%d: winner! cyclic=%d, rounds=%d, paths=%d, ST=%d,%d\n",
+								tid, cyclic,rounds,forEach.paths.size(),*v1, *v2);
 						//verify(g, rounds, cyclic, idx, forEach, *v1, *v2);
 						max_all = rounds;
 					}
 					// report the result
-					report << cyclic << '\t' << rounds << '\t' << nofBlocks << '\t'
+					report << report.name << '\t' << cyclic << '\t' << rounds << '\t' << nofBlocks << '\t'
 					<< *v1 << ',' << *v2 << '\t' << forEach.paths.size()
 					<< '\n';
 				});
@@ -99,7 +103,8 @@ int main(int, char*[]) {
 		}
 		printf("\nLoading %s\n", path.c_str());
 		G g(0);
-		loadFromFile(g, path.c_str());
+//		loadFromFile(g, path.c_str());
+		longDependency(g);
 		print_network_forced(g);
 		printf("%d links, %d nodes\n", num_edges(g), num_vertices(g));
 		{
@@ -116,6 +121,9 @@ int main(int, char*[]) {
 #else
 int main(int, char*[]) {
 	init();
+#if OMP
+	omp_set_num_threads(3);
+#endif
 	using G = myTypes::MyGraph;
 	clock_t t0 = clock();
 
@@ -123,23 +131,24 @@ int main(int, char*[]) {
 //	resultFile << "Name\t" << "Fail\t" << "Success\t"
 //			<< "Ratio\t" << "MaxStackSize" << '\n';
 
-	std::ofstream all("data/overall.txt", std::ios_base::app);
-	int maxr = 0, i = 0, tid;
+	std::ofstream total("data/overall.txt", std::ios_base::app);
+	int maxr = 0;
 
-#pragma omp parallel default(shared) private(tid,i)
+#pragma omp parallel default(shared)
 	{
 		std::ifstream filelist("data/input.txt");
-		int tid = omp_get_thread_num();
+		int i, tid = omp_get_thread_num();
 		string path;
 		while (filelist >> path) {
 			if (path[0] == '#') {
 				continue;
 			}
-			if (i++ % omp_get_num_threads() != omp_get_thread_num()) { // then not this thread's job
+#if OMP
+			if (i++ % omp_get_num_threads() != tid) { // then not this thread's job
 //			printf("skipping %s; i=%d, thread=%d\n",path.c_str(),i, tid);
 				continue;
 			}
-			printf("Hello from thread %d, nthreads %d\n", tid, omp_get_num_threads());
+#endif
 			clock_t t1 = clock();
 			Reporter rep(path);
 			printf("\nLoading %s; thread=%d, i=%d\n", path.c_str(), tid, i);
@@ -154,11 +163,11 @@ int main(int, char*[]) {
 			printf("max rounds=%d\n", rounds);
 			clock_t time = (long double) (clock() - t1) / CLOCKS_PER_SEC;
 			printf("elapsed: %u sec\n", time);
-			all << rep.name << '\t' << nodes << '\t' << links << '\t' << maxr << '\t' << time << '\n';
-			all.flush();
+			total << rep.name << '\t' << nodes << '\t' << links << '\t' << maxr << '\t' << time << '\n';
+			total.flush();
 		}
 	}
-	all.close();
+	total.close();
 	clock_t elapsed_secs = double(clock() - t0) / CLOCKS_PER_SEC;
 	printf("total time=%Lf sec\n", elapsed_secs);
 	return 0;

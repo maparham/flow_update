@@ -123,7 +123,7 @@ struct myTypes {
 //	typedef adjacency_list<vecS, vecS, bidirectionalS,
 //			property<vertex_distance_t, size_t>> DAG;
 
-	typedef adjacency_list<vecS, vecS, directedS,
+	typedef adjacency_list<vecS, vecS, bidirectionalS,
 			property<vertex_distance_t, size_t>> Directed;
 
 	typedef pair<bool, size_t> Result;

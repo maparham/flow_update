@@ -150,10 +150,19 @@ void computeDependencyGraph(const vector<myTypes::MyGraph> &blocks,
 			}
 		}
 	}
+//	EI<myTypes::Directed> itr, itr_end;
+//	for (tie(itr, itr_end) = edges(dependency); itr != itr_end; ++itr) {
+//		const Vertex<myTypes::Directed> &tar = target(*itr, dependency);
+//		if (out_degree(tar, dependency) == 0 && newLinkCount[tar] > 1) {
+//			put(dependency, *itr, edge_weight, -2); // account for 1 preparation phase
+//		}
+//	}
 }
 
-template<class G>
+template<class G, class B>
 class BlockGraphVisitor: public default_dfs_visitor {
+	const vector<B> &blocks;
+	map<int, int> newLinkCount, oldLinkCount; // counters
 public:
 	struct Result {
 		bool cyclic = false;
@@ -161,8 +170,15 @@ public:
 		int headBlockIdx = -1;
 		int tailBlockIdx = -1;
 	};
-	BlockGraphVisitor(G &myDAG, BlockGraphVisitor<G>::Result &result) :
-			myDAG(myDAG), result(result) {
+	BlockGraphVisitor(G &myDAG, const vector<B> &blocks, BlockGraphVisitor<G, B>::Result &result) :
+			myDAG(myDAG), blocks(blocks), result(result) {
+		for (int b = 0; b < blocks.size(); ++b) {
+			int fid = get_property(blocks[b], graph_name);
+			int newLinks = countLinks(blocks[b], fid, flow_new);
+			int oldLinks = countLinks(blocks[b], fid, flow_old);
+			newLinkCount[b] = newLinks;
+			oldLinkCount[b] = oldLinks;
+		}
 	}
 	void back_edge(const Edge<G> &e, const G &g) {
 		PRINTF("back_edge (%d,%d)", source(e, g), target(e, g));
@@ -194,17 +210,22 @@ public:
 			return;
 		}
 
-		int h_src = get(vertex_distance, g)[src];
-		int h_tar = get(vertex_distance, g)[tar];
+		int src_dist = get(vertex_distance, g)[src];
+		int tar_dist = get(vertex_distance, g)[tar];
+
+		int w = 1;
+		w += out_degree(tar, g)==0 && newLinkCount[tar]>1? 1: 0;
+		w += in_degree(src, g)==0 && oldLinkCount[src]>1? 1: 0;
+
 		// update the source vertex distance
-		if ( h_tar > -INF && h_tar + 1 > h_src) {
-			h_src = h_tar + 1;
+		if ( tar_dist > -INF && tar_dist + w > src_dist) {
+			src_dist = tar_dist + w;
 			headMap[src] = headMap[tar];
 			parentMap[src] = tar;
-			put(vertex_distance, myDAG, source(e, g), h_src);
+			put(vertex_distance, myDAG, source(e, g), src_dist);
 			// the max height so far
-			if (result.diameter < h_src) {
-				result.diameter = h_src;
+			if (result.diameter < src_dist) {
+				result.diameter = src_dist;
 				result.headBlockIdx = headMap[src];
 				result.tailBlockIdx = src;
 				PRINTF("on longest path, result.diameter=%d\n",result.diameter);
@@ -228,10 +249,10 @@ private:
 	}
 };
 
-template<class Graph>
-typename BlockGraphVisitor<Graph>::Result evaluate(Graph &g) {
-	typename BlockGraphVisitor<Graph>::Result res;
-	BlockGraphVisitor<Graph> dv(g, res);
+template<class Graph, class B>
+typename BlockGraphVisitor<Graph, B>::Result evaluate(Graph &g, const vector<B> &blocks) {
+	typename BlockGraphVisitor<Graph, B>::Result res;
+	BlockGraphVisitor<Graph, B> dv(g, blocks, res);
 	depth_first_search(g, visitor(dv));
 	return res;
 }
@@ -251,11 +272,11 @@ std::tuple<bool, int, int> two_flows_update(G& g) {
 		return {true, -1, -1};
 	}
 	PRINTF("\nblocks.size()=%d, num_vertices=%d\n", blocks.size(), num_vertices(blocks[0]));
-#ifdef DEBUG
+#if DEBUG
 	for (int i=0;i<blocks.size();++i) {
 		PRINTF("\nblock%d: %luV,%luE, fid=%d\n",i,
 				num_vertices(blocks[i]), num_edges(blocks[i]), get_property(blocks[i], graph_name));
-//		print_network(blocks[i]);
+		print_network_forced(blocks[i]);
 	}
 #endif
 	myTypes::Directed dep(blocks.size());
@@ -265,39 +286,13 @@ std::tuple<bool, int, int> two_flows_update(G& g) {
 	printf("\nprinting dependency graph\n");
 	print_graph(dep);
 #endif
-	auto res = evaluate(dep);
+	auto res = evaluate(dep, blocks);
 	PRINTF("res.diameter=%d, res.tailBlockIdx=%d, res.headBlockIdx=%d\n", res.diameter, res.tailBlockIdx,
 			res.headBlockIdx);
 
 	int rounds = res.diameter + 1; // since we have at least one block
 
-	// case 1: decide whether a final cleanup round is required
-	if (res.headBlockIdx > -1) {
-		const auto &b = blocks[res.headBlockIdx];
-		const auto [itr_begin, itr_end] = edges(b);
-		int fid = get_property(b, graph_name);
-		// count old-flow-links
-		int c = count_if(itr_begin, itr_end, [&](Edge<G> e) {
-			return b[e].flows[fid].usage==flow_new;
-		});
-		PRINTF("headBlock%d has %d new links, fid=%d\n", res.headBlockIdx, c, fid);
-		rounds += (c > 1);
-	}
-
-	// case 2: decide whether an initial preparation round is required
-	if (res.tailBlockIdx > -1) {
-		const auto &b = blocks[res.tailBlockIdx];
-		const auto [itr_begin, itr_end] = edges(b);
-		int fid = get_property(b, graph_name);
-		// count new-flow-links
-		int c = count_if(itr_begin, itr_end, [&](Edge<G> e) {
-			return b[e].flows[fid].usage==flow_old;
-		});
-		PRINTF("tailBlock%d has %d old links, fid=%d\n", res.tailBlockIdx, c, fid);
-		rounds += (c > 1);
-	}
-
-	// case 3: when rounds<3, it could be the case that some block needs 3 rounds anyway
+	// when rounds<3, it could be the case that some block needs 3 rounds anyway
 	for (int i = 0; i < blocks.size(); ++i) {
 		auto &b = blocks[i];
 		const auto [itr_begin, itr_end] = edges(b);

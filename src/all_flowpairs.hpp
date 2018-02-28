@@ -47,7 +47,7 @@ class ForEach_allocation {
 //					printf("%d already included\n",parent);
 					continue;
 				}
-				assert(p.back() == T);
+//				assert(p.back() == T);
 				Path<G> pp( { parent });
 				pp.insert(pp.begin() + 1, p.begin(), p.end());
 				parentPaths.push_back(pp);
@@ -82,7 +82,9 @@ class ForEach_allocation {
 		Combination comb2(paths.size(), 2);
 
 		size_t num = pow(comb1(), 2);
-//		printf(" #allocations=%lu\n", num);
+		if (paths.size() > 66) { // through away too large cases
+			printf("paths.size()=%d, #allocations=%lu\n", paths.size(), num);
+		}
 		do {
 			Combination comb2 = comb1;
 			while (comb2.next()) { // initial +1 offset

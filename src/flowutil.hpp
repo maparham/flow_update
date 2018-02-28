@@ -130,4 +130,13 @@ void clearFlows(G &g) {
 	}
 }
 
+template<class G>
+int countLinks(G &b, const int fid, const Usage_E usage) {
+	const auto [itr_begin, itr_end] = edges(b);
+	// count old/new-flow-links
+	int c = count_if(itr_begin, itr_end, [&](Edge<G> e) {
+		return b[e].flows[fid].usage == usage;
+	});
+	return c;
+}
 #endif /* FLOWUTIL_HPP_ */

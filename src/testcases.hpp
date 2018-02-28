@@ -264,171 +264,100 @@ void longDependency(myTypes::MyGraph &g) {
 	int s = 0, t = 1;
 
 	e = add_edge(s, 2, g).first;
-	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_old);
 
-	e = add_edge(s, 3, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(s, 4, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(2, 4, g).first;
-	g[e].capacity = 1;
+	e = add_edge(2, 3, g).first;
 	g[e].flows[BLUE] = Flow(flow_old);
 
-	e = add_edge(2, 5, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(2, 6, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(3, 2, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(4, 5, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(5, 6, g).first;
-	g[e].capacity = 1;
+	e = add_edge(3, 5, g).first;
 	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(5, 7, g).first;
-	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_old);
-
-	e = add_edge(5, 8, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(6, 7, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(7, 9, g).first;
-	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(7, 8, g).first;
-	g[e].capacity = 1;
+	e = add_edge(9, 11, g).first;
 	g[e].flows[BLUE] = Flow(flow_old);
 
-	e = add_edge(8, 9, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-	g[e].flows[RED] = Flow(flow_new);
+	e = add_edge(11, 13, g).first;
+	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(7, t, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(9, t, g).first;
-	g[e].capacity = 2;
-	g[e].flows[BLUE] = Flow(flow_old);
-	g[e].flows[RED] = Flow(flow_both);
-}
-
-void longDependency1(myTypes::MyGraph &g) {
-	g = myTypes::MyGraph(0);
-	Edge<myTypes::MyGraph> e;
-	int s = 0, t = 1;
-
-	e = add_edge(s, 2, g).first;
-	g[e].capacity = 1;
+	e = add_edge(13, t, g).first;
 	g[e].flows[BLUE] = Flow(flow_old);
 
+	// level1
 	e = add_edge(s, 3, g).first;
-	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(s, 4, g).first;
-	g[e].capacity = 1;
 	g[e].flows[RED] = Flow(flow_new);
-
-	e = add_edge(2, 4, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-
-	e = add_edge(2, 5, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(2, 6, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-
-	e = add_edge(3, 2, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(4, 5, g).first;
-	g[e].capacity = 1;
 	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(3, 4, g).first;
+	g[e].flows[BLUE] = Flow(flow_both);
+
+	// level2
+	e = add_edge(4, 6, g).first;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(6, 7, g).first;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_old);
 
 	e = add_edge(5, 6, g).first;
-	g[e].capacity = 1;
-	g[e].flows[RED] = Flow(flow_old);
+	g[e].flows[RED] = Flow(flow_both);
 
-	e = add_edge(5, t, g).first;
-	g[e].capacity = 2;
+	// level3
+	e = add_edge(6, 8, g).first;
+	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(8, 9, g).first;
 	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
 
-	e = add_edge(6, t, g).first;
-	g[e].capacity = 1;
+	e = add_edge(7, 8, g).first;
+	g[e].flows[BLUE] = Flow(flow_both);
+
+	// level4
+	e = add_edge(8, 10, g).first;
 	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
-}
 
-void longDependency2(myTypes::MyGraph &g) {
-	g = myTypes::MyGraph(0);
-	Edge<myTypes::MyGraph> e;
-	int s = 0, t = 1;
-
-	e = add_edge(s, 2, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-
-	e = add_edge(s, 3, g).first;
-	g[e].capacity = 1;
+	e = add_edge(10, 11, g).first;
 	g[e].flows[BLUE] = Flow(flow_new);
 	g[e].flows[RED] = Flow(flow_old);
 
-	e = add_edge(s, 4, g).first;
-	g[e].capacity = 1;
+	e = add_edge(9, 10, g).first;
+	g[e].flows[RED] = Flow(flow_both);
+
+	// level5
+	e = add_edge(10, 12, g).first;
 	g[e].flows[RED] = Flow(flow_new);
 
-	e = add_edge(2, 4, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_old);
-
-	e = add_edge(2, t, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(3, 2, g).first;
-	g[e].capacity = 1;
-	g[e].flows[BLUE] = Flow(flow_new);
-	g[e].flows[RED] = Flow(flow_old);
-
-	e = add_edge(4, t, g).first;
-	g[e].capacity = 2;
+	e = add_edge(12, 13, g).first;
 	g[e].flows[BLUE] = Flow(flow_old);
 	g[e].flows[RED] = Flow(flow_new);
+
+	e = add_edge(11, 12, g).first;
+	g[e].flows[BLUE] = Flow(flow_both);
+
+	// level6
+	e = add_edge(12, 14, g).first;
+	g[e].flows[BLUE] = Flow(flow_new);
+
+	e = add_edge(14, t, g).first;
+	g[e].flows[BLUE] = Flow(flow_new);
+	g[e].flows[RED] = Flow(flow_both);
+
+	e = add_edge(13, 14, g).first;
+	g[e].flows[RED] = Flow(flow_both);
+
+	setMinimalCapacities(g);
 }
 
 class StefanGraph {

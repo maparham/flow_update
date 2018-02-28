@@ -22,7 +22,7 @@ struct Reporter {
 	string name;
 	static int counter;
 	int index;
-	ofstream of;
+	ofstream of, all;
 
 	static string resultDir() {
 		return RESULT_DIR;
@@ -37,6 +37,7 @@ struct Reporter {
 		name = tokens.back();
 		printf("Result Path: %s\n", resultPath.c_str());
 		of.open(resultPath);
+		all.open(RESULT_DIR + "all.txt", std::ios_base::app);
 		if (!of.is_open()) {
 			printf("file not opened: %s", resultPath.c_str());
 			exit(1);
@@ -46,6 +47,7 @@ struct Reporter {
 	template<typename T>
 	Reporter& operator<<(T input) {
 		of << input;
+		all << input;
 		return *this;
 	}
 	~Reporter() {

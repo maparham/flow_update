@@ -1,0 +1,38 @@
+clear
+reset
+
+set title ARG2
+#set offset -0.5
+#set key left Left
+
+set term pdfcairo noenhanced font "Arial,14"
+set output ARG3
+#set terminal noenhanced color font 'Helvetica,1'
+
+#set style fill solid
+set xtics rotate by -25 offset -2,0 nomirror
+#set xtics font "Arial,11" 
+set grid ytics
+
+set ylabel	'Rounds'
+set xlabel	'ISP Topologies (Zoo)'
+
+set style boxplot nooutliers
+
+print ARG1
+print ARG2
+print ARG3
+print ARG4
+
+
+set border 2 front lt black linewidth 1.000 dashtype solid
+set boxwidth 0.5 absolute
+set style fill solid 0.50 border lt -1
+unset key
+set pointsize 0.5
+set ytics border in scale 1,0.5 nomirror norotate  autojustify
+
+plot ARG1 every 1 using (1):3:(0.3):1 w boxplot title ARG2,\
+
+
+pause 30
